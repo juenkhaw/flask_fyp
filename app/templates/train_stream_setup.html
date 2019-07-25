@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<script>
+
+</script>
+<form action="" method="POST" novalidate>
+    {{form.hidden_tag()}}
+    <p>
+        {{form.modality.label}}<br>
+        {{form.modality}}
+    </p>
+    <p>
+        {{form.dataset_path.label}}<br>
+        {{form.dataset_path(size=32)}}
+    </p>
+    <p>
+        {{form.base_lr.label}}<br>
+        {{form.base_lr(size=32)}}
+    </p>
+    <p>{{form.submit}}</p>
+</form>
+{% endblock %}
