@@ -1,0 +1,32 @@
+<html>
+    <head>
+        <title>Initializing...</title>
+        <script src="{{ url_for('static', filename='jquery.js') }}"></script>
+        <script>
+            $(document).ready(function(){
+                interval = setInterval(check_init, 2000);
+
+            });
+
+            function check_init(init_done) {
+                $.ajax({
+                        url: '/train_stream',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({initialize: true}),
+                        success: function(response) {
+                            // if response is not empty, initialization has done
+                            console.log('initializing.html/response '+response)
+                            if(response) {
+                                clearInterval(interval);
+                                window.location.replace("{{ url_for('train_stream') }}");
+                            }
+                        }
+                    });
+            }
+        </script>
+    </head>
+    <body>
+        <div style="text-align: center; margin-top: 10%"><h2>Initializing Environment...</h2></div>
+    </body>
+</html>

@@ -5,6 +5,8 @@
 </script>
 <form action="" method="POST" novalidate>
     {{form.hidden_tag()}}
+    <fieldset>
+        <legend>Setup</legend>
     <p>
         {{form.modality.label}}<br>
         {{form.modality}}
@@ -14,16 +16,38 @@
         {{form.dataset}}<br>
     </p>
     <p>
+        {{form.split.label}}<br>
+        {{form.split}}<br>
+    </p>
+    <p>
+        {{form.network.label}}<br>
+        {{form.network}}<br>
+    </p>
+    <p>
+        {{form.device.label}}<br>
+        {{form.device}}<br>
+    </p>
+    </fieldset>
+    <fieldset>
+            <legend>Data Augmentation</legend>
+        <p>
+            {{form.clip_len.label}}<br>
+            {{form.clip_len(size=5)}}<br>
+            {%for error in form.clip_len.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+    </fieldset>
+    <fieldset>
+            <legend>Optimizer</legend>
+    <p>
         {{form.base_lr.label}}<br>
         {{form.base_lr(size=10)}}<br>
         {%for error in form.base_lr.errors%}
         <span style="color: red;">[{{error}}]</span><br>
         {%endfor%}
     </p>
-    <p>
-        {{form.network.label}}<br>
-        {{form.network}}<br>
-    </p>
+    </fieldset>
     <p>{{form.submit}}</p>
 </form>
 {% endblock %}

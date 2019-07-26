@@ -12,12 +12,12 @@
                 },
         "r2p1d-34":
                 {
-                "file":"r2p1d",
+                "module":"r2p1d",
                 "class":"R2P1D34Net"
                 },
         "i3d":
                 {
-                "file":"i3d",
+                "module":"i3d",
                 "class":"InceptionI3D"
                 }
     },

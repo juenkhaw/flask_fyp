@@ -13,23 +13,22 @@ from __init__ import BASE_CONF
 
 class StreamTrainer(object):
 
-    state = {}
+    state = {'INIT' : False}
     args = {}
     model = None
     
-    def __init__(self, form_dict):
+    def __init__(self):
         super(StreamTrainer, self).__init__()
         
-        self.state['INITIAL'] = True
+    def init(self, form_dict):
+        
         self.args = form_dict
         
         device = torch.device('cuda:0')
         net_config = BASE_CONF['network'][self.args['network']]
         
         module = importlib.import_module('network.'+net_config['module'])
-        model = getattr(module, net_config['class'])(BASE_CONF['dataset'][self.args['dataset']]['label_num'], 
+        self.model = getattr(module, net_config['class'])(BASE_CONF['dataset'][self.args['dataset']]['label_num'], 
                        device, BASE_CONF['channel'][self.args['modality']]).to(device)
         
-        #exec(open(net_config['file']).read())
-        #net = locals()[net_config['class']]
-        #self.model = net(101, device, 3).to(device)
+        self.state['INIT'] = True
