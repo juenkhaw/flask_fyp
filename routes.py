@@ -61,11 +61,12 @@ def train_stream():
         if st == None:
             base_meta['title'] = 'Stream Training'
             base_meta['header'] = 'Stream Training Setup'
+            global form
             form = TrainStreamForm(device_info['gpu_names'])
             # start the stream training thread
             if form.validate_on_submit():
-                st = StreamTrainer()
-                Thread(target = (lambda: st.init(form_to_dict(form)))).start()
+                #st = StreamTrainer()
+                #Thread(target = (lambda: st.init(form_to_dict(form)))).start()
                 #st = StreamTrainer(form_to_dict(form))
                 return render_template('initializing.html', st = {'state' : st.state['INIT']})
             return render_template('train_stream_setup.html', base_meta = base_meta, form = form)
@@ -76,13 +77,18 @@ def train_stream():
             else:
                 return render_template('initializing.html', st = {'state' : st.state['INIT']})
         
-    else: # this is ajax post request
-        # if initialization is done
-        print('train_stream/st/state/INIT', st.state['INIT'])
-        if st.state['INIT']:
-            return 'Training Start'
-        else: # else do nothing
-            return ''
+    else: # this is ajax post request, classifying action based on request json
+        
+        if 'dataset' in req.keys(): # updating the split_select choices
+            form.split.choices = [(x, x) for x in list(range(1, BASE_CONF['dataset'][req['dataset']]['split'] + 1))]
+            return jsonify({'html':form.split})
+            
+        else: # if initialization is done
+            print('train_stream/st/state/INIT', st.state['INIT'])
+            if st.state['INIT']:
+                return 'Training Start'
+            else: # else do nothing
+                return ''
         
 
 @app.route('/test_stream')

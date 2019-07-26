@@ -34,7 +34,7 @@ class TrainStreamForm(FlaskForm):
     # basic setup
     modality = SelectField(u'Modality', choices = [('rgb','RGB'), ('flow','FLOW')], validators=[DataRequired()])
     dataset = SelectField(u'Video Dataset', choices = [(x, x) for x in list(BASE_CONF['dataset'].keys())], validators=[DataRequired()])
-    split = SelectField(u'Split', choices = [], validators=[DataRequired()])
+    split = SelectField(u'Split', choices = [], validators=[DataRequired()], id = 'split_select')
     network = SelectField(u'Network Architecture', choices = [(x, x) for x in list(BASE_CONF['network'].keys())], validators=[DataRequired()])
     device = SelectField(u'Device', choices = [], validators=[DataRequired()])
     

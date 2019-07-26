@@ -1,7 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 <script>
-
+    $(document).ready(function() {
+        $("#{{form.dataset.id}}").change(function() {
+            var opt = $(this).children("option:selected").val();
+            $.ajax({
+                url: "/train_stream",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({dataset: opt}),
+                success: function(response) {
+                    //console.log(response.html);
+                    $("#{{form.split.id}}").html(response.html);
+                }
+            })
+        });
+    })
 </script>
 <form action="" method="POST" novalidate>
     {{form.hidden_tag()}}
