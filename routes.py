@@ -5,7 +5,7 @@ Created on Sun Jul 21 22:37:09 2019
 @author: Juen
 """
 
-from app import app
+from __init__ import app, BASE_CONF
 from flask import render_template, url_for, request, jsonify
 
 import plotly.offline as py
@@ -13,7 +13,8 @@ import plotly.graph_objs as go
 
 import torch
 
-from app.forms import TrainStreamForm
+from forms import TrainStreamForm
+from train_stream import StreamTrainer
 
 graph_config = {'scrollZoom' : False, 'displayModeBar' : False}
 
@@ -27,6 +28,10 @@ device_info = {
     'gpu_count' : torch.cuda.device_count(),
     'gpu_names' : [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
 }
+
+def form_to_dict(form):
+    a = [x for x in list(form.__class__.__dict__) if x[0] != '_' and 'validate' not in x and x != 'submit']
+    return {x: getattr(form, x).data for x in a}
 
 @app.route('/')
 @app.route('/index')
@@ -43,8 +48,10 @@ def train_stream():
     base_meta['title'] = 'Stream Training'
     base_meta['header'] = 'Stream Training Setup'
     form = TrainStreamForm()
+    # start the stream training thread
     if form.validate_on_submit():
-        return form.modality.data + '/' + form.dataset_path.data + '/' + str(form.base_lr.data)
+        st = StreamTrainer(form_to_dict(form))
+        return str(form_to_dict(form))
     return render_template('train_stream_setup.html', base_meta = base_meta, device_info = device_info, form = form)
 
 @app.route('/test_stream')
