@@ -1,19 +1,103 @@
 {% extends "base.html" %}
 {% block content %}
 <script>
+    var reduce_by_step_id = ["#{{form.step_size.id}}", "#{{form.last_step.id}}"]
+    var reduce_by_step_default = [10, -1]
+    var reduce_on_plateau_id = ["#{{form.patience.id}}", "#{{form.loss_threshold.id}}", "#{{form.min_lr.id}}"]
+    var reduce_on_plateau_default = [10, 0.0001, 0]
+
+    function update_form(target_field, req_json) {
+        $.ajax({
+            url: "/train_stream",
+            type: "POST",
+            contentType: "application/json",
+            data: req_json,
+            success: function(response) {
+                $(target_field).html(response.html);
+            }
+        });
+    }
+
+    function set_default(fields, defaults) {
+        function func(item, index) {
+            $(item).val(defaults[index]);
+        }
+        fields.forEach(func);
+    }
+
+    function update_scheduler_settings(opt) {
+        if(opt !== 'none') {
+            $("#scheduler_option").show();
+            if(opt == 'stepLR') {
+                $("#reduce_by_step_option").show();
+                $("#reduce_on_plateau_option").hide();
+                set_default(reduce_on_plateau_id, reduce_on_plateau_default);
+            } else {
+                $("#reduce_by_step_option").hide();
+                set_default(reduce_by_step_id, reduce_by_step_default);
+                $("#reduce_on_plateau_option").show();
+            }
+        } else {
+            $("#scheduler_option").hide();
+            $("#{{form.lr_reduce_ratio.id}}").val(0.1)
+            set_default(reduce_by_step_id, reduce_by_step_default);
+            set_default(reduce_on_plateau_id, reduce_on_plateau_default);
+        }
+    }
+
+    function update_subbatch_settings() {
+        if($("#{{form.is_batch_size.id}}").is(":checked")) {
+            $("#batch_size_option").hide();
+            $("#{{form.sub_batch_size.id}}").val($("#{{form.batch_size.id}}").val());
+            $("#{{form.val_batch_size.id}}").val($("#{{form.batch_size.id}}").val());
+        } else {
+            $("#batch_size_option").show();
+            $("#{{form.sub_batch_size.id}}").val("");
+            $("#{{form.val_batch_size.id}}").val("");
+        }
+    }
+
+    function update_debug_option() {
+        if($("#{{form.is_debug_mode.id}}").is(":checked")) {
+            $("#debug_option").show();
+        } else {
+            $("#debug_option").hide();
+            $("#{{form.debug_train_size.id}}").val(32);
+            $("#{{form.debug_val_size.id}}").val(32);
+        }
+    }
+
     $(document).ready(function() {
+        update_scheduler_settings($("#{{form.lr_scheduler.id}}").children("option:selected").val());
+        update_subbatch_settings();
+        update_debug_option();
+
         $("#{{form.dataset.id}}").change(function() {
             var opt = $(this).children("option:selected").val();
-            $.ajax({
-                url: "/train_stream",
-                type: "POST",
-                contentType: "application/json",
-                data: JSON.stringify({dataset: opt}),
-                success: function(response) {
-                    //console.log(response.html);
-                    $("#{{form.split.id}}").html(response.html);
-                }
-            })
+            update_form("#{{form.split.id}}", JSON.stringify({dataset: opt}));
+        });
+
+        $("#{{form.batch_size.id}}").change(function() {
+            var size = $(this).val();
+            update_form("#{{form.sub_batch_size.id}}", JSON.stringify({batchsize: size, field: 'sub'}));
+            update_form("#{{form.val_batch_size.id}}", JSON.stringify({batchsize: size, field: 'val'}));
+        });
+
+        $("#{{form.is_batch_size.id}}").change(function() {
+            update_subbatch_settings();
+        })
+
+        $("#{{form.base_lr.id}}").change(function() {
+            var lr = $(this).val();
+            update_form("#{{form.min_lr.id}}", JSON.stringify({base_lr: lr}));
+        });
+
+        $("#{{form.lr_scheduler.id}}").change(function() {
+            update_scheduler_settings($(this).children("option:selected").val());
+        });
+
+        $("#{{form.is_debug_mode.id}}").change(function() {
+            update_debug_option();
         });
     })
 </script>
@@ -41,19 +125,92 @@
         {{form.device.label}}<br>
         {{form.device}}<br>
     </p>
+    <p>
+        {{form.pretrain_model.label}}<br>
+        {{form.pretrain_model}}<br>
+    </p>
+    <p>
+        {{form.epoch.label}}<br>
+        {{form.epoch(size=10)}}<br>
+        {%for error in form.epoch.errors%}
+        <span style="color: red;">[{{error}}]</span><br>
+        {%endfor%}
+    </p>
     </fieldset>
     <fieldset>
-            <legend>Data Augmentation</legend>
+            <legend>Data Preprocessing</legend>
         <p>
-            {{form.clip_len.label}}<br>
+            {{form.clip_len.label}} (random temporal extraction)<br>
             {{form.clip_len(size=5)}}<br>
             {%for error in form.clip_len.errors%}
             <span style="color: red;">[{{error}}]</span><br>
             {%endfor%}
         </p>
+
+        <p>
+            {{form.is_rand_flip}} {{form.is_rand_flip.label}}
+        </p>
+
+        <p>
+            Resizing Resolution (before random cropping)<br>
+            {{form.resize_h(size=10, placeholder="Height")}}&Tab;
+            {{form.resize_w(size=10, placeholder="Width")}}<br>
+            {%for error in form.resize_h.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+            {%for error in form.resize_w.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+
+        <p>
+            Cropping Resolution<br>
+            {{form.crop_h(size=10, placeholder="Height")}}&Tab;
+            {{form.crop_w(size=10, placeholder="Width")}}<br>
+            {%for error in form.crop_h.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+            {%for error in form.crop_w.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+
+        <p>
+            {{form.is_mean_sub}} {{form.is_mean_sub.label}}
+        </p>
+        
     </fieldset>
     <fieldset>
             <legend>Optimizer</legend>
+
+    <p>
+        {{form.batch_size.label}}<br>
+        {{form.batch_size(size=20, placeholder = 'for each params update')}}<br>
+        {%for error in form.batch_size.errors%}
+        <span style="color: red;">[{{error}}]</span><br>
+        {%endfor%}
+    </p>
+    <p>
+        {{form.is_batch_size}} {{form.is_batch_size.label}}<br>
+    </p>
+
+    <fieldset id="batch_size_option">
+        <legend>Sub-batch Size</legend>
+        {{form.sub_batch_size.label}}<br>
+        {{form.sub_batch_size(size=20, placeholder = 'for each training f/b-prop')}}<br>
+
+        {%for error in form.sub_batch_size.errors%}
+        <span style="color: red;">[{{error}}]</span><br>
+        {%endfor%}
+
+        {{form.val_batch_size.label}}<br>
+        {{form.val_batch_size(size=20, placeholder = 'for each validation f-prop')}}<br>
+    
+        {%for error in form.val_batch_size.errors%}
+        <span style="color: red;">[{{error}}]</span><br>
+        {%endfor%}
+    </fieldset>
+
     <p>
         {{form.base_lr.label}}<br>
         {{form.base_lr(size=10)}}<br>
@@ -61,6 +218,118 @@
         <span style="color: red;">[{{error}}]</span><br>
         {%endfor%}
     </p>
+
+    <p>
+        {{form.lr_scheduler.label}}<br>
+        {{form.lr_scheduler}}<br>
+    </p>
+
+    <fieldset id="scheduler_option">
+        <legend>LR Scheduler</legend>
+        {{form.lr_reduce_ratio.label}}<br>
+        {{form.lr_reduce_ratio(size=10)}}<br>
+        {%for error in form.lr_reduce_ratio.errors%}
+        <span style="color: red;">[{{error}}]</span><br>
+        {%endfor%}
+        <div id="reduce_by_step_option">
+            {{form.step_size.label}}<br>
+            {{form.step_size(size=10)}}<br>
+            {%for error in form.step_size.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+
+            {{form.last_step.label}}<br>
+            {{form.last_step(size=10)}}<br>
+            {%for error in form.last_step.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </div>
+        <div id="reduce_on_plateau_option">
+            {{form.patience.label}}<br>
+            {{form.patience(size=10)}}<br>
+            {%for error in form.patience.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+
+            {{form.loss_threshold.label}}<br>
+            {{form.loss_threshold(size=10)}}<br>
+            {%for error in form.loss_threshold.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+
+            {{form.min_lr.label}}<br>
+            {{form.min_lr(size=10)}}<br>
+            {%for error in form.min_lr.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </div>
+    </fieldset>
+
+    <p>
+        {{form.momentum.label}}<br>
+        {{form.momentum(size=10)}}<br>
+        {%for error in form.momentum.errors%}
+        <span style="color: red;">[{{error}}]</span><br>
+        {%endfor%}
+    </p>
+
+    <p>
+        {{form.l2decay.label}}<br>
+        {{form.l2decay(size=10)}}<br>
+        {%for error in form.l2decay.errors%}
+        <span style="color: red;">[{{error}}]</span><br>
+        {%endfor%}
+    </p>
+
+    <p>
+        {{form.dropout.label}}<br>
+        {{form.dropout(size=10)}}<br>
+        {%for error in form.dropout.errors%}
+        <span style="color: red;">[{{error}}]</span><br>
+        {%endfor%}
+    </p>
+    
+    </fieldset>
+    <fieldset>
+        <legend>Debugging</legend>
+        <p>
+            {{form.is_debug_mode}} {{form.is_debug_mode.label}}
+        </p>
+        <fieldset id="debug_option">
+            <legend>Test Run on Small Batch</legend>
+        <p>
+            {{form.debug_mode.label}}<br>
+            {{form.debug_mode}}<br>
+        </p>
+        <p>
+            {{form.debug_train_size.label}}<br>
+            {{form.debug_train_size(size=20)}}<br>
+            {%for error in form.debug_train_size.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+        <p>
+            {{form.debug_val_size.label}}<br>
+            {{form.debug_val_size(size=20)}}<br>
+            {%for error in form.debug_val_size.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+        </fieldset>
+    </fieldset>
+    <fieldset>
+        <legend>Output</legend>
+        <p>
+            {{form.output_name.label}}<br>
+            {{form.output_name(size=30, placeholder="Leave it blank if not saving")}}<br>
+            {%for error in form.output_name.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+        <p>
+            {{form.output_compare.label}}<br>
+            {{form.output_compare}}<br>
+        </p>
     </fieldset>
     <p>{{form.submit}}</p>
 </form>

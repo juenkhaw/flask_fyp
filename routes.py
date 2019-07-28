@@ -15,13 +15,15 @@ import torch
 
 from threading import Thread
 
-from forms import TrainStreamForm
+from forms import TrainStreamForm, num_range, SelectField
+from decimal import Decimal
+
 from train_stream import StreamTrainer
 
 graph_config = {'scrollZoom' : False, 'displayModeBar' : False}
 
 base_meta = {
-        'title' : 'Action Recognition Network Benchmarking', 
+        'title' : 'Two-Stream Action Recognition Network Benchmarking', 
         'header' : 'Main Page'
 }
 
@@ -33,7 +35,16 @@ device_info = {
 
 def form_to_dict(form):
     a = [x for x in list(form.__class__.__dict__) if x[0] != '_' and 'validate' not in x and x != 'submit']
-    return {x: getattr(form, x).data for x in a}
+    dic = {}
+    for field_name in a:
+        field = getattr(form, field_name)
+        if type(field) == SelectField:
+            dic[field_name] = str(field.data)
+        elif type(field.data) == Decimal:
+            dic[field_name] = float(field.data)
+        else:
+            dic[field_name] = field.data
+    return dic
 
 @app.route('/')
 @app.route('/index')
@@ -68,7 +79,13 @@ def train_stream():
                 #st = StreamTrainer()
                 #Thread(target = (lambda: st.init(form_to_dict(form)))).start()
                 #st = StreamTrainer(form_to_dict(form))
-                return render_template('initializing.html', st = {'state' : st.state['INIT']})
+                print('train_stream/form_success')
+                return jsonify(form_to_dict(form))
+                #return render_template('initializing.html', st = {'state' : st.state['INIT']})
+            else:
+                for fieldName, errorMessages in form.errors.items():
+                    for err in errorMessages:
+                        print('train_stream/form_failed',fieldName, err)
             return render_template('train_stream_setup.html', base_meta = base_meta, form = form)
     
         else: # there is already an istance of train streamer
@@ -80,8 +97,20 @@ def train_stream():
     else: # this is ajax post request, classifying action based on request json
         
         if 'dataset' in req.keys(): # updating the split_select choices
-            form.split.choices = [(x, x) for x in list(range(1, BASE_CONF['dataset'][req['dataset']]['split'] + 1))]
+            form.split.choices = [(x, str(x)) for x in list(range(1, BASE_CONF['dataset'][req['dataset']]['split'] + 1))]
             return jsonify({'html':form.split})
+        
+        elif all(x in req.keys() for x in ['batchsize', 'field']): # updating max value for sub-batch and val-batch
+            if req['field'] == 'sub':
+                form.sub_batch_size.validators[1] = num_range(min = 1, max = int(req['batchsize']))
+                return jsonify({'html':form.sub_batch_size})
+            else:
+                form.val_batch_size.validators[1] = num_range(min = 1, max = int(req['batchsize']))
+                return jsonify({'html':form.val_batch_size})
+            
+        elif 'base_lr' in req.keys(): # updating max value for min_lr in reduce_lr_on_plateau settings
+            form.min_lr.validators[1] = num_range(min = 0, max = float(req['base_lr']))
+            return jsonify({'html':form.min_lr})
             
         else: # if initialization is done
             print('train_stream/st/state/INIT', st.state['INIT'])

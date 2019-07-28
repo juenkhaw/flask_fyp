@@ -199,13 +199,12 @@ class R2Plus1DNet(nn.Module):
         'conv3_x',
         'conv4_x',
         'conv5_x',
-        'AP',
-        'FC',
-        'SCORES'
+        'linear',
+        'softmax'
     )
     
     def __init__(self, layer_sizes, num_classes, device, in_channels = 3, bn_momentum = 0.1, 
-                 bn_epson = 1e-3, name = 'R2+1D', verbose = True, endpoint = ['SCORES'], dropout = 0):
+                 bn_epson = 1e-3, name = 'R2+1D', verbose = True, endpoint = ['softmax'], dropout = 0):
             
         super(R2Plus1DNet, self).__init__()
         
@@ -213,11 +212,11 @@ class R2Plus1DNet(nn.Module):
         self._verbose = verbose
         
         # validate list of endpoint
-        for endp in endpoint:
-            assert endp in self.VALID_ENDPOINTS
+        assert(all([x in self.VALID_ENDPOINTS for x in endpoint]))
         self._endpoint = endpoint
         
         self.net = nn.Sequential(OrderedDict([
+                # conv
                 ('conv1',
                 SpatioTemporalConv(in_channels, 64, kernel_size = (3, 7, 7), 
                        stride = (1, 2, 2), padding = 'SAME', inter_planes = 45, name = 'conv1', 
@@ -238,16 +237,14 @@ class R2Plus1DNet(nn.Module):
                 SpatioTemporalResModule(256, 512, kernel_size = (3, 3, 3), 
                        layer_size = layer_sizes[3], downsample = True, name = 'conv5_x', 
                        bn_mom = bn_momentum, bn_eps = bn_epson).to(device)),
+                 # fc
+                ('avgpool', nn.AdaptiveAvgPool3d(1)), 
+                ('linear', nn.Linear(512, num_classes)),
+                ('dropout', nn.Dropout3d(p = dropout)),
+                # scores
+                ('softmax', nn.Softmax(dim = 1))
                 ]))
-        
-        # Logits
-        self.avgpool = nn.AdaptiveAvgPool3d(1)
-        
-        #self.linear = nn.Linear(512, num_classes)
-        self.linear1 = nn.Linear(512, num_classes)
-        
-        self.dropout1 = nn.Dropout3d(p = dropout)
-        self.softmax = nn.Softmax(dim = 1)
+
         
     def freezeAll(self, unfreeze = False):
         for params in self.parameters():
@@ -299,32 +296,27 @@ class R2Plus1DNet(nn.Module):
         x = x.view(-1, 512)
         if self._verbose:
             print('Pre FC', x.shape)
-            
-        if 'AP' in self._endpoint:
-            final_out['AP'] = x
         
         # fc linear layer
         x = self.linear1(x)
         if self._verbose:
             print('Post FC', x.shape)
             
-        if 'FC' in self._endpoint:
-            final_out['FC'] = x
+        if 'linear' in self._endpoint:
+            final_out['linear'] = x
         
-        if 'SCORES' in self._endpoint:
-            final_out['SCORES'] = self.softmax(x)
+        if 'softmax' in self._endpoint:
+            final_out['softmax'] = self.softmax(x)
             
         return final_out
     
 class R2P1D18Net(nn.Module):
     
-    def __init__(self, num_classes, device, in_channels, 
-                 bn_momentum = 0.1, bn_epson = 1e-3, endpoint = ['SCORES'], dropout = 0):
+    def __init__(self, num_classes, device, in_channels, endpoint = ['softmax'], dropout = 0):
         
         super(R2P1D18Net, self).__init__()
         
-        self.net = R2Plus1DNet([2,2,2,2], num_classes, device, in_channels=in_channels, bn_momentum=bn_momentum,
-                               bn_epson=bn_epson, endpoint=endpoint, dropout=dropout)
+        self.net = R2Plus1DNet([2,2,2,2], num_classes, device, in_channels=in_channels, endpoint=endpoint, dropout=dropout)
         
     def freezeAll(self, unfreeze = False):
         self.net.freezeAll(unfreeze = unfreeze)
@@ -338,7 +330,7 @@ class R2P1D18Net(nn.Module):
 class R2P1D34Net(nn.Module):
         
     def __init__(self, num_classes, device, in_channels, 
-                 bn_momentum = 0.1, bn_epson = 1e-3, endpoint = ['SCORES'], dropout = 0):
+                 bn_momentum = 0.1, bn_epson = 1e-3, endpoint = ['softmax'], dropout = 0):
         
         super(R2P1D34Net, self).__init__()
         

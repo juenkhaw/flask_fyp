@@ -152,10 +152,102 @@ def getModuleCount(net):
             count[2] += 1
     print(count)
     
+class TemplateNetwork(object):
+    
+    def __init__(self, device, num_classes, in_channel, endpoint = ['Softmax'], dropout = 0, interim = {}):
+        """
+        device: Device to be used to perform these modules
+        num_classes: Number of class labels for prediction
+        in_channel: Channel depth of input volume
+        endpoint: List of checkpoints throughout the network where output to be returned
+        dropout: Dropout ratio, probability to zero out an element
+        """
+        
+        super(TemplateNetwork, self).__init__()
+        
+        # to be appended by user with full list of modules (input to softmax)
+        self.net_order = []
+        self.endpoints = []
+        self.inter_process = {}
+        self.net = None
+        self.output_endpoints = endpoint
+        self.device = device
+        
+    def add_module(self, name, module):
+        """
+        add module into a module buffer list, and name into a enpoint list
+        name: module name
+        module: nn.Module module
+        """
+        self.net_order.append((name, module.to(self.device)))
+        self.endpoints.append(name)
+        
+    def add_inter_process(self, module_name, func):
+        """
+        add inter-layer processing on the volume before feeding to the specified module
+        module_name: Indicating the module after the inter-process
+        func: {func : {args : value}} a dict of function objects with dict of arguments for each function
+        """
+        self.inter_process[module_name] = func
+            
+    def compile_module(self):
+        """
+        compile completed module buffer list into a complete workable network
+        """
+        self.net = nn.Sequential(OrderedDict([x for x in self.net_order]))
+    
+    def freeze_all(self, unfreeze = False):
+        """
+        freeze all learnable parameters across the network
+        unfreeze: Indicator to unfreeze the parameters
+        """
+        for params in self.net.parameters():
+            params.requires_grad = unfreeze
+            
+    def freeze(self, layer, unfreeze = False):
+        """
+        freeze learnable parameters of a portion of network modules
+        layer: module name, all modules before this layer is going to be froze, while unfreezing others beyond that
+        unfreeze: Indicator to unfreeze the parameters
+        """
+        assert(layer in self.endpoints)
+        freeze_layer = self.endpoints.index(layer)
+        
+        for i, modul in enumerate(self.net):
+            for params in modul.parameters():
+                params.requires_grad = unfreeze if i < freeze_layer else not unfreeze
+                
+    def forward(self, x):
+        """
+        forward propagation on compiled network
+        x: input volume
+        """
+        final_out = {}
+        
+        for i, module in enumerate(self.net):
+            if self.endpoints[i] in self.inter_process.keys():
+                for func, args in self.inter_process[self.endpoints[i]].items():
+                    x = func(x, **args)
+            x = self.net[i](x)
+            if self.endpoints[i] in self.output_endpoints:
+                final_out[self.endpoints[i]] = x
+            print(self.endpoints[i], x.shape)
+        
+        return final_out
+    
 if __name__ is '__main__':
     
-    conv3D_test = Conv3D(109, 56, (3, 3, 3), stride=(2, 2, 2), padding = 'SAME')
-    mp3D_test = MaxPool3DSame(kernel_size=(1,3,3), stride=(1,2,2))
+#    conv3D_test = Conv3D(109, 56, (3, 3, 3), stride=(2, 2, 2), padding = 'SAME')
+#    mp3D_test = MaxPool3DSame(kernel_size=(1,3,3), stride=(1,2,2))
+#    
+#    x = torch.randn((1, 64, 32, 112, 112))
+#    print(mp3D_test(x).shape)
     
-    x = torch.randn((1, 64, 32, 112, 112))
-    print(mp3D_test(x).shape)
+    device = torch.device('cuda:0')
+    temp = TemplateNetwork(device, 101, 3)
+    temp.add_module('conv3d', Conv3D(1024, 101, kernel_size = (1, 1, 1), padding = 'VALID', activation=None))
+    temp.add_module('linear', nn.Linear(101, 6))
+    temp.add_module('softmax', nn.Softmax(dim = 1))
+    
+    
+    
