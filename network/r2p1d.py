@@ -10,7 +10,7 @@ import torch.nn as nn
 import numpy as np
 from collections import OrderedDict
 
-from network.module import Conv3D
+from module import Conv3D, TemplateNetwork
 
 class SpatioTemporalConv(nn.Module):
     """
@@ -176,177 +176,63 @@ class SpatioTemporalResModule(nn.Module):
             
         return x
     
-class R2Plus1DNet(nn.Module):
-    """
-    Complete network architecture of R2.5D ConvNet
+class R2P1D18Net(TemplateNetwork):
     
-    Constructor requires:
-        layer_sizes : list of integer indicating repetation count of residual blocks at each phase
-        num_classess : total label count
-        device : device id to be used on training/testing
-        block_type : type of residual block
-        in_channels : initial channels of the input volume
-        bn_momentum : BN momentum hyperparameter
-        bn_epson : BN epsilon hyperparameter
-        name : module name
-        verbose : prints activation output size after each phases or not
-        endpoint : list of endpoints on the network where output would be returned
-    """
+    def __init__(self, device, num_classes, in_channel, endpoint = ['Softmax'], dropout = 0):
+        
+        # initializing template network
+        super(R2P1D18Net, self).__init__(device, num_classes, in_channel, endpoint, dropout)
+        
+        # adding module block
+        self.add_module('Conv1', SpatioTemporalConv(in_channel, 64, kernel_size = (3, 7, 7), 
+                       stride = (1, 2, 2), padding = 'SAME', inter_planes = 45, name = 'Conv1'))
+        self.add_module('Conv2_x', SpatioTemporalResModule(64, 64, kernel_size = (3, 3, 3), 
+                       layer_size = 2, downsample = False, name = 'Conv2_x'))
+        self.add_module('Conv3_x', SpatioTemporalResModule(64, 128, kernel_size = (3, 3, 3), 
+                       layer_size = 2, downsample = True, name = 'Conv3_x'))
+        self.add_module('Conv4_x', SpatioTemporalResModule(128, 256, kernel_size = (3, 3, 3), 
+                       layer_size = 2, downsample = True, name = 'Conv4_x'))
+        self.add_module('Conv5_x', SpatioTemporalResModule(256, 512, kernel_size = (3, 3, 3), 
+                       layer_size = 2, downsample = True, name = 'Conv5_x'))
+        self.add_module('Avgpool', nn.AdaptiveAvgPool3d(1))
+        self.add_inter_process('Linear', {torch.Tensor.view : {'size' : (-1, 512)}})
+        self.add_module('Linear', nn.Linear(512, num_classes))
+        self.add_module('Dropout', nn.Dropout(p = dropout))
+        self.add_module('Softmax', nn.Softmax(dim = 1))
+        
+        self.compile_module()
+        
+class R2P1D34Net(TemplateNetwork):
     
-    VALID_ENDPOINTS = (
-        'conv1',
-        'conv2_x',
-        'conv3_x',
-        'conv4_x',
-        'conv5_x',
-        'linear',
-        'softmax'
-    )
+    def __init__(self, device, num_classes, in_channel, endpoint = ['Softmax'], dropout = 0):
+        
+        # initializing template network
+        super(R2P1D34Net, self).__init__(device, num_classes, in_channel, endpoint, dropout)
+        
+        # adding module block
+        self.add_module('Conv1', SpatioTemporalConv(in_channel, 64, kernel_size = (3, 7, 7), 
+                       stride = (1, 2, 2), padding = 'SAME', inter_planes = 45, name = 'Conv1', 
+                       bn_relu_second_conv=True))
+        self.add_module('Conv2_x', SpatioTemporalResModule(64, 64, kernel_size = (3, 3, 3), 
+                       layer_size = 3, downsample = False, name = 'Conv2_x'))
+        self.add_module('Conv3_x', SpatioTemporalResModule(64, 128, kernel_size = (3, 3, 3), 
+                       layer_size = 4, downsample = True, name = 'Conv3_x'))
+        self.add_module('Conv4_x', SpatioTemporalResModule(128, 256, kernel_size = (3, 3, 3), 
+                       layer_size = 6, downsample = True, name = 'Conv4_x'))
+        self.add_module('Conv5_x', SpatioTemporalResModule(256, 512, kernel_size = (3, 3, 3), 
+                       layer_size = 3, downsample = True, name = 'Conv5_x'))
+        self.add_module('Avgpool', nn.AdaptiveAvgPool3d(1))
+        self.add_inter_process('Linear', {torch.Tensor.view : {'size' : (-1, 512)}})
+        self.add_module('Linear', nn.Linear(512, num_classes))
+        self.add_module('Dropout', nn.Dropout(p = dropout))
+        self.add_module('Softmax', nn.Softmax(dim = 1))
+        
+        self.compile_module()
     
-    def __init__(self, layer_sizes, num_classes, device, in_channels = 3, bn_momentum = 0.1, 
-                 bn_epson = 1e-3, name = 'R2+1D', verbose = True, endpoint = ['softmax'], dropout = 0):
-            
-        super(R2Plus1DNet, self).__init__()
-        
-        self._num_classes = num_classes
-        self._verbose = verbose
-        
-        # validate list of endpoint
-        assert(all([x in self.VALID_ENDPOINTS for x in endpoint]))
-        self._endpoint = endpoint
-        
-        self.net = nn.Sequential(OrderedDict([
-                # conv
-                ('conv1',
-                SpatioTemporalConv(in_channels, 64, kernel_size = (3, 7, 7), 
-                       stride = (1, 2, 2), padding = 'SAME', inter_planes = 45, name = 'conv1', 
-                       bn_mom = bn_momentum, bn_eps = bn_epson, bn_relu_second_conv = True).to(device)),
-                ('conv2_x', 
-                SpatioTemporalResModule(64, 64, kernel_size = (3, 3, 3), 
-                       layer_size = layer_sizes[0], downsample = False, name = 'conv2_x', 
-                       bn_mom = bn_momentum, bn_eps = bn_epson).to(device)),
-                ('conv3_x', 
-                SpatioTemporalResModule(64, 128, kernel_size = (3, 3, 3), 
-                       layer_size = layer_sizes[1], downsample = True, name = 'conv3_x', 
-                       bn_mom = bn_momentum, bn_eps = bn_epson).to(device)),
-                ('conv4_x', 
-                SpatioTemporalResModule(128, 256, kernel_size = (3, 3, 3), 
-                       layer_size = layer_sizes[2], downsample = True, name = 'conv4_x', 
-                       bn_mom = bn_momentum, bn_eps = bn_epson).to(device)),
-                ('conv5_x', 
-                SpatioTemporalResModule(256, 512, kernel_size = (3, 3, 3), 
-                       layer_size = layer_sizes[3], downsample = True, name = 'conv5_x', 
-                       bn_mom = bn_momentum, bn_eps = bn_epson).to(device)),
-                 # fc
-                ('avgpool', nn.AdaptiveAvgPool3d(1)), 
-                ('linear', nn.Linear(512, num_classes)),
-                ('dropout', nn.Dropout3d(p = dropout)),
-                # scores
-                ('softmax', nn.Softmax(dim = 1))
-                ]))
-
-        
-    def freezeAll(self, unfreeze = False):
-        for params in self.parameters():
-            params.requires_grad = unfreeze
-            
-    def freeze(self, layer, unfreeze = False):
-        assert(layer in self.VALID_ENDPOINTS[:5])
-        freeze_layer = int(layer.split('_')[0][-1])
-        
-        for i, modul in enumerate(self.net):
-            for params in modul.parameters():
-                params.requires_grad = unfreeze if i < freeze_layer else not unfreeze
-        
-
-    def replaceLinear(self, num_classes):
-        """
-        Replaces the FC linear layer with updated label count
-        
-        Inputs:
-            num_classess : updated label count
-            
-        Returns:
-            None
-        """
-        
-        self._num_classes = num_classes
-        self.linear1 = nn.Linear(512, num_classes)        
-        
-    def forward(self, x):
-        
-        final_out = {}
-        
-        # perform each module and append the output volume when reaching its appointed endpoints
-        if self._verbose:
-            print('Input', x.shape)
-            
-        for i, modul in enumerate(self.net):
-            x = self.net[i](x)
-            if self._verbose:
-                print(self.VALID_ENDPOINTS[i], x.shape)
-            if self.VALID_ENDPOINTS[i] in self._endpoint:
-                final_out[self.VALID_ENDPOINTS[i]] = x
-                
-        if self.dropout1.p != 0:
-            x = self.dropout1(x)
-        
-        # pre-fc
-        x = self.avgpool(x)
-        x = x.view(-1, 512)
-        if self._verbose:
-            print('Pre FC', x.shape)
-        
-        # fc linear layer
-        x = self.linear1(x)
-        if self._verbose:
-            print('Post FC', x.shape)
-            
-        if 'linear' in self._endpoint:
-            final_out['linear'] = x
-        
-        if 'softmax' in self._endpoint:
-            final_out['softmax'] = self.softmax(x)
-            
-        return final_out
-    
-class R2P1D18Net(nn.Module):
-    
-    def __init__(self, num_classes, device, in_channels, endpoint = ['softmax'], dropout = 0):
-        
-        super(R2P1D18Net, self).__init__()
-        
-        self.net = R2Plus1DNet([2,2,2,2], num_classes, device, in_channels=in_channels, endpoint=endpoint, dropout=dropout)
-        
-    def freezeAll(self, unfreeze = False):
-        self.net.freezeAll(unfreeze = unfreeze)
-        
-    def freeze(self, layer, unfreeze = False):
-        self.net.freeze(layer, unfreeze = False)
-    
-    def forward(self, x):
-        self.net.forward(x)
-        
-class R2P1D34Net(nn.Module):
-        
-    def __init__(self, num_classes, device, in_channels, 
-                 bn_momentum = 0.1, bn_epson = 1e-3, endpoint = ['softmax'], dropout = 0):
-        
-        super(R2P1D34Net, self).__init__()
-        
-        self.net = R2Plus1DNet([3,4,6,3], num_classes, device, in_channels=in_channels, bn_momentum=bn_momentum,
-                               bn_epson=bn_epson, endpoint=endpoint, dropout=dropout)
-        
-    def freezeAll(self, unfreeze = False):
-        self.net.freezeAll(unfreeze = unfreeze)
-        
-    def freeze(self, layer, unfreeze = False):
-        self.net.freeze(layer, unfreeze = False)
-    
-    def forward(self, x):
-        self.net.forward(x)
-
 if __name__ == '__main__':
     device = torch.device('cuda:0')
-    #model = R2P1D34Net(101, device, 2)
-    #model.load_state_dict(torch.load('kinetic-s1m-d34-l32-of.pth.tar')['state_dict'], strict=False)
+    model = R2P1D34Net(device, 101, 3, endpoint=['Linear', 'Softmax'])
+    #x = torch.randn((1, 2, 8, 112, 112)).to(device)
+    #y = model.forward(x)
+    
+    model.net.load_state_dict(torch.load('../pretrained/kinetic-s1m-d34-l32.pth.tar')['state_dict'])
