@@ -7,7 +7,7 @@ Created on Sat Jan 26 21:56:29 2019
 import torch	
 import torch.nn as nn	
 
-from module import Conv3D, MaxPool3DSame, TemplateNetwork
+from network.module import Conv3D, MaxPool3DSame, TemplateNetwork
 
 class InceptionModule(nn.Module):	
 

@@ -10,7 +10,7 @@ import torch.nn as nn
 import numpy as np
 from collections import OrderedDict
 
-from module import Conv3D, TemplateNetwork
+from network.module import Conv3D, TemplateNetwork
 
 class SpatioTemporalConv(nn.Module):
     """
@@ -235,4 +235,4 @@ if __name__ == '__main__':
     #x = torch.randn((1, 2, 8, 112, 112)).to(device)
     #y = model.forward(x)
     
-    model.net.load_state_dict(torch.load('../pretrained/kinetic-s1m-d34-l32.pth.tar')['state_dict'])
+    #model.net.load_state_dict(torch.load('../pretrained/kinetic-s1m-d34-l32.pth.tar')['state_dict'])
