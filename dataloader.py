@@ -206,6 +206,21 @@ def spatial_center_crop(buffer_size, clip_size):
     
     return (start_h, end_h), (start_w, end_w)
 
+def spatial_10_crop(buffer_size, clip_size):
+    """
+    buffer_size : size of the original scaled frames
+    clip_size : size of the output clip frames
+    """
+    # expected parameters to be a tuple of height and width
+    assert(len(buffer_size) == 2 and len(clip_size) == 2)
+    
+    h_top = (0, clip_size[0])
+    h_btm = (buffer_size[0] - clip_size[0], buffer_size[0])
+    w_left = (0, clip_size[1])
+    w_right = (buffer_size[1] - clip_size[1], buffer_size[1])
+    
+    return [(h_top, w_left), (h_top, w_right), (h_btm, w_left), (h_btm, w_right), spatial_center_crop(buffer_size, clip_size)]
+
 def spatial_random_flip(buffer):
     """
     Flips a sequence of frames spatially by a random 50% chance
@@ -330,9 +345,9 @@ class Videoset(Dataset):
         # retrieve frame count of current sample
         frame_count = len(path_content[0])
         
+        t_index = []
+        s_index = None
         if self._mode in ['train', 'val']:
-            t_index = []
-            s_index = []
             # retrieve temporal indices
             if self._mode == 'train': # random temporal spatial cropping
                 t_index.append(temporal_crop(frame_count, self._args['clip_len']))
@@ -343,11 +358,15 @@ class Videoset(Dataset):
                 s_index = spatial_center_crop((self._args['resize_h'], self._args['resize_w']), 
                                        (self._args['crop_h'], self._args['crop_w']))
         else:
-            pass # testing
-            # retrieve indices for center cropping and temporal index for each clips
-#            t_index = temporal_uniform_crop(frame_count, self.args['clip_len'], 10)
-#            s_index = spatial_center_crop((self._args['resize_h'], self._args['resize_w']), 
-#                                       (self._args['crop_h'], self._args['crop_h']))
+            if self._args['test_method'] == '10-clips':
+                # retrieve indices for center cropping and temporal index for each clips
+                t_index = temporal_uniform_crop(frame_count, self._args['clip_len'], 10)
+                s_index = spatial_center_crop((self._args['resize_h'], self._args['resize_w']), 
+                                              (self._args['crop_h'], self._args['crop_w']))
+            else: # 10-crops
+                t_index.append(temporal_center_crop(frame_count, self._args['clip_len']))
+                s_index = spatial_10_crop((self._args['resize_h'], self._args['resize_w']), 
+                                              (self._args['crop_h'], self._args['crop_w']))
             
         clip_count = 10 if self._mode == 'test' else 1
         channel_count = 3 if self._args['modality'] == 'rgb' else 2
@@ -371,7 +390,7 @@ class Videoset(Dataset):
                 else:
                     buffer_frame.append(cv2.imread(path_content[0][frame2], cv2.IMREAD_GRAYSCALE))
                     buffer_frame.append(cv2.imread(path_content[1][frame2], cv2.IMREAD_GRAYSCALE))
-                    
+                                        
                 for i in range(len(buffer_frame)):
                     if buffer_frame[i] is not None:
                         
@@ -382,8 +401,16 @@ class Videoset(Dataset):
                         if channel_count == 2:
                             buffer_frame[i] = buffer_frame[i][:, :, np.newaxis]
                         
-                        if self._mode == 'test':
-                            pass
+                        if self._args['test_method'] == '10-crops':
+                            for s in range(len(s_index)):
+                                buffer_frame2 = buffer_frame[i][s_index[s][0][0] : s_index[s][0][1], 
+                                             s_index[s][1][0] : s_index[s][1][1], :]
+                                if channel_count == 3:
+                                    np.copyto(buffer[s, frame - t_index[t][0], :, :, :], buffer_frame2)
+                                    np.copyto(buffer[s+5, frame - t_index[t][0], :, :, :], np.flip(buffer_frame2, axis = 1))
+                                else:
+                                    np.copyto(buffer[s, (frame - t_index[t][0]), :, :, i], buffer_frame2[:, :, 0])
+                                    np.copyto(buffer[s+5, (frame - t_index[t][0]), :, :, i], np.flip(buffer_frame2[:, :, 0], axis = 1))
                         
                         else: # other besides 10-crop testing
                             # applying random cropping for training and center cropping for validation/10-clips testing
@@ -407,12 +434,12 @@ class Videoset(Dataset):
                 buffer = flow_mean_sub(buffer)
                 
             # random vertical flipping
-            if self._args['is_rand_flip']:
+            if self._args['is_rand_flip'] and self._mode == 'train':
                 buffer = spatial_random_flip(buffer)
             
-            # normalization and transform to Tensor format
-            buffer = normalize_buffer(buffer)
-            return transform_buffer(buffer, False)
+        # normalization and transform to Tensor format
+        buffer = normalize_buffer(buffer)
+        return transform_buffer(buffer, False)
         
     def __len__(self):
         return len(self._Y)
@@ -426,13 +453,14 @@ class Videoset(Dataset):
 if __name__ == '__main__':
     temp = Videoset({'dataset':'UCF-101', 'modality':'flow', 'split':1, 'is_debug_mode':1, 'debug_mode':'distributed', 
                      'debug_train_size':4, 'clip_len':8, 'resize_h':128, 'resize_w':171, 'crop_h':112, 
-                     'crop_w':112, 'is_mean_sub':True, 'is_rand_flip':True}, 'train')
-    a = temp.__getitem__(0)
+                     'crop_w':112, 'is_mean_sub':True, 'is_rand_flip':True, 'debug_test_size':4, 
+                     'test_method':'10-crops', 'debug_test_size':4}, 'test')
+    a = temp.__getitem__(33)
     at = transform_buffer(a, True)
     for i in range(8):
-        #cv2.imshow('t', cv2.cvtColor(at[0, i], cv2.COLOR_RGB2BGR))
-        cv2.imshow('u', at[0, i, :, :, 0])
-        cv2.imshow('v', at[0, i, :, :, 1])
+        #cv2.imshow('t', cv2.cvtColor(at[4, i], cv2.COLOR_RGB2BGR))
+        cv2.imshow('u', at[9, i, :, :, 0])
+        cv2.imshow('v', at[9, i, :, :, 1])
         cv2.waitKey()
     cv2.destroyAllWindows()
     #temp = Videoset({'dataset':'HMDB-51', 'modality':'rgb', 'split':1}, 'train')
