@@ -154,12 +154,14 @@ def getModuleCount(net):
     
 class TemplateNetwork(object):
     
-    def __init__(self, device, num_classes, in_channel, endpoint = ['Softmax'], dropout = 0, interim = {}):
+    def __init__(self, device, num_classes, in_channel, endpoint = ['Softmax'], 
+                 lastpoint = 'Softmax', dropout = 0, interim = {}):
         """
         device: Device to be used to perform these modules
         num_classes: Number of class labels for prediction
         in_channel: Channel depth of input volume
         endpoint: List of checkpoints throughout the network where output to be returned
+        lastpoint: A checkpoint where propagation stops
         dropout: Dropout ratio, probability to zero out an element
         """
         
@@ -168,6 +170,7 @@ class TemplateNetwork(object):
         # to be appended by user with full list of modules (input to softmax)
         self.net_order = []
         self.endpoints = []
+        self.lastpoint = lastpoint
         self.inter_process = {}
         self.net = None
         self.output_endpoints = endpoint
@@ -179,7 +182,7 @@ class TemplateNetwork(object):
         name: module name
         module: nn.Module module
         """
-        self.net_order.append((name, module.to(self.device)))
+        self.net_order.append((name, module))
         self.endpoints.append(name)
         
     def add_inter_process(self, module_name, func):
@@ -194,7 +197,7 @@ class TemplateNetwork(object):
         """
         compile completed module buffer list into a complete workable network
         """
-        self.net = nn.Sequential(OrderedDict([x for x in self.net_order]))
+        self.net = nn.Sequential(OrderedDict([x for x in self.net_order])).to(self.device)
     
     def freeze_all(self, unfreeze = False):
         """
@@ -231,7 +234,9 @@ class TemplateNetwork(object):
             x = self.net[i](x)
             if self.endpoints[i] in self.output_endpoints:
                 final_out[self.endpoints[i]] = x
-            print(self.endpoints[i], x.shape)
+            #print(self.endpoints[i], x.shape)
+            if self.lastpoint == self.endpoints[i]:
+                break
         
         return final_out
     

@@ -14,6 +14,6 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.config['SECRET_KEY'] = 'abc123'
 
 import json
-BASE_CONF = json.loads(open('BASE_CONFIG.txt').read())
+BASE_CONFIG = json.loads(open('BASE_CONFIG.txt').read())
 
-import routes
+from . import routes

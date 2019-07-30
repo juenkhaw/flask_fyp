@@ -9,7 +9,7 @@ from flask_wtf import FlaskForm
 from wtforms import SelectField, StringField, DecimalField, SubmitField, ValidationError, FileField, IntegerField, BooleanField, SelectMultipleField
 from wtforms.validators import InputRequired, regexp
 
-from __init__ import BASE_CONF
+from . import BASE_CONFIG
 
 import os
 
@@ -37,12 +37,13 @@ class TrainStreamForm(FlaskForm):
     
     # basic setup
     modality = SelectField(u'Modality', choices = [('rgb','RGB'), ('flow','FLOW')], validators=[InputRequired()])
-    dataset = SelectField(u'Video Dataset', choices = [(x, str(x)) for x in list(BASE_CONF['dataset'].keys())], validators=[InputRequired()])
+    dataset = SelectField(u'Video Dataset', choices = [(x, str(x)) for x in list(BASE_CONFIG['dataset'].keys())], validators=[InputRequired()])
     split = SelectField(u'Split', coerce = int, choices = [], validators=[InputRequired()], id = 'split_select')
-    network = SelectField(u'Network Architecture', choices = [(x, x) for x in list(BASE_CONF['network'].keys())], validators=[InputRequired()])
+    network = SelectField(u'Network Architecture', choices = [(x, x) for x in list(BASE_CONFIG['network'].keys())], validators=[InputRequired()])
     device = SelectField(u'Device', choices = [], validators=[InputRequired()])
-    pretrain_model = SelectField(u'Pretrained Model', choices = [], validators=[InputRequired()])
     epoch = IntegerField(u'Epoch', validators=[InputRequired(), num_range(min = 1)], default = 50)
+    pretrain_model = SelectField(u'Pretrained Model', choices = [], validators=[InputRequired()])
+    freeze_point = SelectField(u'Freeze Network (up to this point, exclusive)', coerce = str, choices = [], validators=[InputRequired()])
     
     # optimizer
     base_lr = DecimalField(u'Base Learning Rate', places = None, default = 0.01, validators=[InputRequired(), num_range(min = 0)])
@@ -56,7 +57,7 @@ class TrainStreamForm(FlaskForm):
     val_batch_size = IntegerField(u'Val Batch Size', validators=[InputRequired(), num_range(min = 1, max = 32, dependant=[None, 'batch_size'])])
     # for optmizer scheduler
     lr_scheduler = SelectField(u'LR Schedule Scheme', choices=[('none', 'None'), ('stepLR', 'Reduce by Epoch'), ('dynamic', 'Reduce on Plateau')], validators=[InputRequired()])
-    lr_reduce_ratio = DecimalField(u'LR Reduce Ratio', places = None, default = 0.1, validators=[InputRequired()])
+    lr_reduce_ratio = DecimalField(u'LR Decay Factor', places = None, default = 0.1, validators=[InputRequired()])
     # for reduce by step
     step_size = IntegerField(u'Epoch Step', default = 10, validators=[InputRequired(), num_range(min = 1)])
     last_step = IntegerField(u'Last Epoch Stopping Reduction', default = -1, validators=[InputRequired(), num_range(min = -1)])
@@ -92,14 +93,17 @@ class TrainStreamForm(FlaskForm):
         self._gpu_names.extend([('cpu', 'CPU')])
         self.device.choices = self._gpu_names
         
-        first_dataset = list(BASE_CONF['dataset'].keys())[0]
-        self._split_choices = [(x, x) for x in list(range(1, BASE_CONF['dataset'][first_dataset]['split'] + 1))]
-        self.split.choices = self._split_choices
+        first_dataset = list(BASE_CONFIG['dataset'].keys())[0]
+        self.split.choices = [(x, x) for x in list(range(1, BASE_CONFIG['dataset'][first_dataset]['split'] + 1))]
         
         self.pretrain_model.choices = [('none', 'None')]
         self.pretrain_model.choices.extend([(x, x) for x in os.listdir('pretrained') if '.pth.tar' in x])
         
         self.output_compare.choices = [(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x]
+        
+        first_network = list(BASE_CONFIG['network'].keys())[0]
+        self.freeze_point.choices = [('none', 'None')]
+        self.freeze_point.choices.extend([(x, x) for x in BASE_CONFIG['network'][first_network]['endpoint']])
     
     def validate_dataset_path(form, field):
         try:

@@ -99,6 +99,10 @@
         $("#{{form.is_debug_mode.id}}").change(function() {
             update_debug_option();
         });
+
+        $("#{{form.network.id}}").change(function() {
+            update_form("#{{form.freeze_point.id}}", JSON.stringify({network: $(this).val()}))
+        });
     })
 </script>
 <form action="" method="POST" novalidate>
@@ -126,16 +130,26 @@
         {{form.device}}<br>
     </p>
     <p>
-        {{form.pretrain_model.label}}<br>
-        {{form.pretrain_model}}<br>
-    </p>
-    <p>
         {{form.epoch.label}}<br>
         {{form.epoch(size=10)}}<br>
         {%for error in form.epoch.errors%}
         <span style="color: red;">[{{error}}]</span><br>
         {%endfor%}
     </p>
+    <fieldset>
+        <legend>Pretraining</legend>
+        
+        <p>
+            {{form.pretrain_model.label}}<br>
+            {{form.pretrain_model}}<br>
+        </p>
+
+        <p>
+            {{form.freeze_point.label}}<br>
+            {{form.freeze_point}}<br>
+        </p>
+    </fieldset>
+
     </fieldset>
     <fieldset>
             <legend>Data Preprocessing</legend>

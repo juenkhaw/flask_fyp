@@ -8,17 +8,22 @@
         "r2p1d-18":
                 {
                 "module":"r2p1d",
-                "class":"R2P1D18Net"
+                "class":"R2P1D18Net",
+                "endpoint":["Conv1", "Conv2_x", "Conv3_x", "Conv4_x", "Conv5_x", "Avgpool", "Linear", "Dropout", "Softmax"]
                 },
         "r2p1d-34":
                 {
                 "module":"r2p1d",
-                "class":"R2P1D34Net"
+                "class":"R2P1D34Net",
+                "endpoint":["Conv1", "Conv2_x", "Conv3_x", "Conv4_x", "Conv5_x", "Avgpool", "Linear", "Dropout", "Softmax"]
                 },
         "i3d":
                 {
                 "module":"i3d",
-                "class":"InceptionI3D"
+                "class":"InceptionI3D",
+                "endpoint":["Conv3d_1a_7x7", "MaxPool3d_2a_3x3", "Conv3d_2b_1x1", "Conv3d_2c_3x3", "MaxPool3d_3a_3x3", "Mixed_3b",
+                                "Mixed_3c", "MaxPool3d_4a_3x3", "Mixed_4b", "Mixed_4c", "Mixed_4d", "Mixed_4e", "Mixed_4f", "MaxPool3d_5a_2x2",
+                                "Mixed_5b", "Mixed_5c", "Avg_pool", "Dropout", "Logits", "Linear", "Softmax"]
                 }
     },
 "dataset":

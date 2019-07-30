@@ -65,6 +65,35 @@ BASE_CONFIG = {
     }
 }
                 
+def generate_subbatches(sbs, *tensors):
+    """
+    Generate list of subbtaches from a batch of sample data
+    sbs: sub batch size
+    tensors : list of tensors batch to be partitioned  
+    Returns:
+        subbatches : list of partitioned subbateches
+    """
+    # engulf tensor into a list if there is only one tensor passed in
+    if isinstance(tensors, Tensor):
+        tensors = [tensors]
+        
+    subbatches = []
+    for i in range(len(tensors)):
+        subbatch = []
+        part_num = tensors[i].shape[0] // sbs
+        # if subbatch size is lower than the normal batch size
+        if sbs < tensors[i].shape[0]:
+            # partitioning batch with subbatch size
+            subbatch = [tensors[i][j * sbs : j * sbs + sbs] for j in range(part_num)]
+            # if there is any remainder in the batch
+            if part_num * sbs < tensors[i].shape[0]:
+                subbatch.append(tensors[i][part_num * sbs : ])
+            subbatches.append(subbatch)
+        else:
+            subbatches.append([tensors[i]])
+    
+    return subbatches if len(tensors) > 1 else subbatches[0]
+                
 def transform_buffer(buffer, to_display):
     """
     Transform frame/clip/video(multiple clips) matrix to/from tensor and displayable
@@ -301,7 +330,7 @@ class Videoset(Dataset):
         f_in.close()
         
         # read in path to each of the sample in specified split/set
-        f_in = open(path.join(self._dataset_info['base_path'], self._dataset_info[mode+'_txt'][args['split']]))
+        f_in = open(path.join(self._dataset_info['base_path'], self._dataset_info[mode+'_txt'][args['split'] - 1]))
         buffer = f_in.read().split('\n')[:-1]
         self._Y = np.array([x.split(' ')[1] for x in buffer], dtype = np.int)
         if args['modality'] == 'rgb':

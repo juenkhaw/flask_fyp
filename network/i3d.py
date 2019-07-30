@@ -7,7 +7,7 @@ Created on Sat Jan 26 21:56:29 2019
 import torch	
 import torch.nn as nn	
 
-from network.module import Conv3D, MaxPool3DSame, TemplateNetwork
+from module import Conv3D, MaxPool3DSame, TemplateNetwork
 
 class InceptionModule(nn.Module):	
 
@@ -78,9 +78,9 @@ class InceptionI3D(TemplateNetwork):
         self.compile_module()
 
 if __name__ == '__main__':	
-    device = torch.device('cpu')
+    device = torch.device('cuda:0')
     #model = InceptionI3D(101, device).to(device)
     model = InceptionI3D(device, 101, 3, endpoint=['Logits', 'Softmax'])
-    x = torch.randn((1, 3, 64, 224, 224)).to(device)
+    #x = torch.randn((1, 3, 64, 224, 224)).to(device)
 
-    y = model.forward(x)
+    #y = model.forward(x)

@@ -5,7 +5,7 @@ Created on Sun Jul 21 22:37:09 2019
 @author: Juen
 """
 
-from __init__ import app, BASE_CONF
+from . import app, BASE_CONFIG
 from flask import render_template, url_for, request, jsonify, redirect
 
 import plotly.offline as py
@@ -15,10 +15,10 @@ import torch
 
 from threading import Thread
 
-from forms import TrainStreamForm, num_range, SelectField
+from .forms import TrainStreamForm, num_range, SelectField
 from decimal import Decimal
 
-from train_stream import StreamTrainer
+#from stream_module import StreamTrainer
 
 graph_config = {'scrollZoom' : False, 'displayModeBar' : False}
 
@@ -39,7 +39,10 @@ def form_to_dict(form):
     for field_name in a:
         field = getattr(form, field_name)
         if type(field) == SelectField:
-            dic[field_name] = str(field.data)
+            if field_name in ['split']:
+                dic[field_name] = field.data
+            else:
+                dic[field_name] = str(field.data)
         elif type(field.data) == Decimal:
             dic[field_name] = float(field.data)
         else:
@@ -97,7 +100,7 @@ def train_stream():
     else: # this is ajax post request, classifying action based on request json
         
         if 'dataset' in req.keys(): # updating the split_select choices
-            form.split.choices = [(x, str(x)) for x in list(range(1, BASE_CONF['dataset'][req['dataset']]['split'] + 1))]
+            form.split.choices = [(x, x) for x in list(range(1, BASE_CONFIG['dataset'][req['dataset']]['split'] + 1))]
             return jsonify({'html':form.split})
         
         elif all(x in req.keys() for x in ['batchsize', 'field']): # updating max value for sub-batch and val-batch
@@ -111,6 +114,17 @@ def train_stream():
         elif 'base_lr' in req.keys(): # updating max value for min_lr in reduce_lr_on_plateau settings
             form.min_lr.validators[1] = num_range(min = 0, max = float(req['base_lr']))
             return jsonify({'html':form.min_lr})
+        
+        elif 'network' in req.keys(): # updating freeze_point options
+            form.freeze_point.choices = [('none', 'None')]
+            form.freeze_point.choices.extend([(x,x) for x in BASE_CONFIG['network'][req['network']]['endpoint']])
+            if form.validate_on_submit():
+                #st = StreamTrainer()
+                #Thread(target = (lambda: st.init(form_to_dict(form)))).start()
+                #st = StreamTrainer(form_to_dict(form))
+                print('train_stream/form_success')
+                return jsonify(form_to_dict(form))
+            return jsonify({'html':form.freeze_point})
             
         else: # if initialization is done
             print('train_stream/st/state/INIT', st.state['INIT'])
