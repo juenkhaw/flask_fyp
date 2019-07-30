@@ -101,9 +101,9 @@ class TrainStreamForm(FlaskForm):
         
         self.output_compare.choices = [(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x]
         
-        first_network = list(BASE_CONFIG['network'].keys())[0]
         self.freeze_point.choices = [('none', 'None')]
-        self.freeze_point.choices.extend([(x, x) for x in BASE_CONFIG['network'][first_network]['endpoint']])
+        for net in BASE_CONFIG['network'].keys():
+            self.freeze_point.choices.extend([(x, x) for x in BASE_CONFIG['network'][net]['endpoint']])
     
     def validate_dataset_path(form, field):
         try:

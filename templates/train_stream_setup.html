@@ -71,6 +71,7 @@
         update_scheduler_settings($("#{{form.lr_scheduler.id}}").children("option:selected").val());
         update_subbatch_settings();
         update_debug_option();
+        update_form("#{{form.freeze_point.id}}", JSON.stringify({network: $("#{{form.network.id}}").val()}))
 
         $("#{{form.dataset.id}}").change(function() {
             var opt = $(this).children("option:selected").val();

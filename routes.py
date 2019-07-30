@@ -118,12 +118,6 @@ def train_stream():
         elif 'network' in req.keys(): # updating freeze_point options
             form.freeze_point.choices = [('none', 'None')]
             form.freeze_point.choices.extend([(x,x) for x in BASE_CONFIG['network'][req['network']]['endpoint']])
-            if form.validate_on_submit():
-                #st = StreamTrainer()
-                #Thread(target = (lambda: st.init(form_to_dict(form)))).start()
-                #st = StreamTrainer(form_to_dict(form))
-                print('train_stream/form_success')
-                return jsonify(form_to_dict(form))
             return jsonify({'html':form.freeze_point})
             
         else: # if initialization is done
