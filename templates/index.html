@@ -4,12 +4,11 @@
 
 </script>
 <ul>
-    <h3>Pretrained Model</h3>
-    <li><a href="{{ url_for('convert') }}">Convert from Caffe model to Pytorch</a></li>
     <h3>Stream Networks</h3>
-    <li><a href="{{ url_for('train_stream') }}">Train Stream Network</a></li>
+    <li><a href="{{ url_for('train_stream') }}">Start A New Stream Training</a></li>
+    <li><a href="{{ url_for('resume_stream') }}">Resume Stream Training</a></li>
     <li><a href="{{ url_for('test_stream') }}">Evaluate Stream Network</a></li>
-    <li><a href="{{ url_for('inspect_stream') }}">Check Stream Network Output File</a></li>
+    <li><a href="{{ url_for('inspect_stream') }}">Inspect Stream Network Output File</a></li>
     <!--
     <h3>Conventional Fusion</h3>
     <li><a href="">Averaging/SVM Fusion</a></li>

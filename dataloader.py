@@ -342,16 +342,15 @@ class Videoset(Dataset):
         self._Y_freq = np.bincount(self._Y)
             
         # trim sample set if debugging mode is enabled
-        indices = None
         if args['is_debug_mode']:
+            indices = None
             if args['debug_mode'] == 'peek':
                 indices = list(range(args['debug_'+mode+'_size']))
                 
             else:
                 sample_num = args['debug_'+mode+'_size']
-                freqs = np.bincount(self._Y)
                 # ensure that sample number does not exceed the freq of least occurence class label
-                assert(sample_num <= np.min(freqs))
+                assert(sample_num <= np.min(self._Y_freq))
                 
                 # extract indices of sample to be selected
                 indices = []
@@ -362,6 +361,9 @@ class Videoset(Dataset):
                     
             self._X_path = self._X_path[indices]
             self._Y = self._Y[indices]
+            
+        # count on occurence of each label
+        self._Y_freq = np.bincount(self._Y)
             
     def __getitem__(self, index):
         
@@ -468,7 +470,10 @@ class Videoset(Dataset):
             
         # normalization and transform to Tensor format
         buffer = normalize_buffer(buffer)
-        return transform_buffer(buffer, False)
+        if self._mode in ['train', 'val']:
+            return transform_buffer(buffer, False)[0], self._Y[index]
+        else:
+            return transform_buffer(buffer, False), self._Y[index]
         
     def __len__(self):
         return len(self._Y)

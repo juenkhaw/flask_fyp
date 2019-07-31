@@ -253,6 +253,8 @@ if __name__ is '__main__':
     temp.add_module('conv3d', Conv3D(1024, 101, kernel_size = (1, 1, 1), padding = 'VALID', activation=None))
     temp.add_module('linear', nn.Linear(101, 6))
     temp.add_module('softmax', nn.Softmax(dim = 1))
+    temp.compile_module()
+    temp.freeze('linear')
     
     
     

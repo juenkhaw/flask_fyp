@@ -84,6 +84,9 @@ class TrainStreamForm(FlaskForm):
     # output
     output_name = StringField(u'Output File Name')
     output_compare = SelectMultipleField(u'Comparing with Other Models')
+    
+    # hidden field
+    test_method = StringField(u'', default='none')
 
     submit = SubmitField('Start')
     

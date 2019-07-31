@@ -51,13 +51,8 @@ def form_to_dict(form):
 
 @app.route('/')
 @app.route('/index')
-def index():
-        
+def index():   
     return render_template('index.html', base_meta = base_meta, device_info = device_info)
-
-@app.route('/convert')
-def convert():
-    return "CONVERT"
 
 @app.route('/train_stream', methods=['GET', 'POST'])
 def train_stream():
@@ -127,6 +122,10 @@ def train_stream():
             else: # else do nothing
                 return ''
         
+
+@app.route('/resume_stream', methods=['GET', 'POST'])
+def resume_stream():
+    return "RESUME STREAM"
 
 @app.route('/test_stream')
 def test_stream():

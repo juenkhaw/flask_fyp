@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 import importlib
 from time import time
 from math import ceil
+import numpy as np
 
 from dataloader import Videoset, generate_subbatches
 #from __init__ import BASE_CONFIG
@@ -73,14 +74,14 @@ class StreamTrainer(object):
         Initializes network modules and standing by in the computing device
         """
         # define device
-        self.device = torch.device('cuda:0')
+        self.device = torch.device(self.args['device'])
         net_config = BASE_CONFIG['network'][self.args['network']]
         
         # define network model
         print('train_stream/initializing network')
         module = importlib.import_module('network.'+net_config['module'])
-        self.model = getattr(module, net_config['class'])(device, BASE_CONFIG['dataset'][self.args['dataset']]['label_num'], 
-                       BASE_CONFIG['channel'][self.args['modality']])
+        self.model = getattr(module, net_config['class'])(self.device, BASE_CONFIG['dataset'][self.args['dataset']]['label_num'], 
+                       BASE_CONFIG['channel'][self.args['modality']], endpoint=['Linear', 'Softmax'])
         self.model.compile_module()
         
     def load_pretrained_model(self):
@@ -92,6 +93,8 @@ class StreamTrainer(object):
         if self.args['pretrain_model'] != 'none':
             print('train_stream/loading pretrained model')
             key_error = self.model.net.load_state_dict(torch.load('pretrained/'+self.args['pretrain_model']), strict = False)
+            if self.args['freeze_point'] != None:
+                self.model.freeze(self.args['freeze_point'])
             print('train_stream/WARNING missing/unexpected keys in loading state', key_error)
             
     def load_resume_model(self):
@@ -116,8 +119,11 @@ class StreamTrainer(object):
         # prepare dataloaders for training and validation set
         print('train_stream/preparing dataloaders')
         train_dataloader = DataLoader(Videoset(self.args, 'train'), batch_size=self.args['batch_size'], shuffle=True)
-        val_dataloader = DataLoader(Videoset(self.args, 'val'), batch_size=self.args['val_batch_size'], shuffle=False)
-        self.dataloaders = {'train': train_dataloader, 'val': val_dataloader}
+        if BASE_CONFIG['dataset'][self.args['dataset']]['val_txt'] != []:
+            val_dataloader = DataLoader(Videoset(self.args, 'val'), batch_size=self.args['val_batch_size'], shuffle=False)
+            self.dataloaders = {'train': train_dataloader, 'val': val_dataloader}
+        else:
+            self.dataloaders = {'train': train_dataloader}
         
     def load_test_dataset(self):
         """
@@ -132,7 +138,7 @@ class StreamTrainer(object):
         self.init_network()
         self.load_pretrained_model()
         self.load_train_val_dataset()
-        
+                
         # define loss and optimizer
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.SGD(self.model.net.parameters(), lr = self.args['base_lr'], momentum = self.args['momentum'], 
@@ -157,10 +163,33 @@ class StreamTrainer(object):
     def setup_testing(self):
         pass
     
-    def save_main_output(self, **contents):
+    def save_main_output(self, path, **contents):
         self.main_output = contents
         if self.args['output_name'] != '':
-            torch.save(self.main_output, self.args['output_name'])
+            torch.save(self.main_output, path+self.args['output_name']+'.pth.tar')
+            
+    def compute_confusion_matrix(self, result, dataloader):
+        """
+        result: expected to be a softmax output tensor
+        dataloader: for the frequency table
+        """
+        result = result.cpu().detach().numpy()
+        freq = dataloader.dataset._Y_freq
+        size = (len(freq), BASE_CONFIG['dataset'][self.args['dataset']]['label_num'])
+        val_result = {'score': np.empty(size), 'pred':np.empty(size)}
+        
+        count = 0
+        for i, f in enumerate(freq):
+            # based on predicted label
+            pred = np.argmax(result[count:count + f], axis = 1)
+            val_result['pred'][i] = np.bincount(pred, minlength=size[1]) / f * 100
+            
+            # based on softmax scores
+            val_result['score'][i] = np.sum(result[count:count+f], axis=0) / f
+            
+            count += f
+            
+        return val_result
         
     def train_net(self): # TO BE FUSED WITH RESUME TRAINING TASK
         
@@ -168,7 +197,7 @@ class StreamTrainer(object):
         
         subbatch_sizes = {'train' : self.args['sub_batch_size'], 'val' : self.args['val_batch_size']}
         subbatch_count = {'train' : self.args['batch_size'], 'val' : self.args['val_batch_size']}
-        performances = {'train_loss':[], 'train_acc':[], 'val_loss':[], 'val_acc':[], 'lr_decay':[], 'last_lr':None}
+        performances = {'train_loss':[], 'train_acc':[], 'val_loss':[], 'val_acc':[], 'lr_decay':[], 'last_lr':None, 'val_result':None}
         epoch = 1
         elapsed = {'total':0, 'train':0}
         timer = {'total':0, 'train':0}
@@ -176,12 +205,12 @@ class StreamTrainer(object):
         for epoch in range(epoch, self.args['epoch'] + 1):
             timer['total'] = time()
             
-            for phase in ['train', 'val']:
+            for phase in self.dataloaders.keys():
                 torch.cuda.empty_cache()
                 
                 # anticipating total batch count
                 batch = 1
-                total_batch = int(ceil(len(self.dataloaders[phase].dataset) / subbatch_count[phase]))
+                self.total_batch = int(ceil(len(self.dataloaders[phase].dataset) / subbatch_count[phase]))
                 
                 # reset the loss and accuracy
                 current_loss = 0
@@ -192,12 +221,14 @@ class StreamTrainer(object):
                     self.model.net.train()
                 else:
                     self.model.net.eval()
-                    
+                
+                val_epoch_results = torch.tensor([], dtype = torch.float).to(self.device)
+                
                 # for each mini batch of dataset
                 for inputs, labels in self.dataloaders[phase]:
                     torch.cuda.empty_cache()
                     
-                    #print('Phase', phase, '| Current batch', str(batch), '/', str(total_batch), end = '\n')
+                    print('Phase', phase, '| Current batch', str(batch), '/', str(self.total_batch), end = '\n')
                     batch += 1
                     self.update['progress'] = True
                     
@@ -231,7 +262,7 @@ class StreamTrainer(object):
                             if phase == 'train':
                                 # transforming outcome from a series of scores to a single scalar index
                                 # indicating the index where the highest score held
-                                _, preds = torch.max(output['Linear'], 1)
+                                _, preds = torch.max(output['Softmax'], 1)
                                 
                                 # compute the loss
                                 loss = self.criterion(output['Linear'], sub_labels[sb])
@@ -245,7 +276,7 @@ class StreamTrainer(object):
                                 
                             else:
                                 # append the validation result until all subbatches are tested on
-                                outputs = torch.cat((outputs, output['FC']))
+                                outputs = torch.cat((outputs, output['Softmax']))
                                 
                             # this is where actual training ends
                             elapsed['train'] += time() - timer['train']
@@ -257,35 +288,46 @@ class StreamTrainer(object):
                         
                         _, preds = torch.max(outputs, 1)
                         current_correct += torch.sum(preds == labels.data)
+                        
+                        val_epoch_results = torch.cat((val_epoch_results, outputs))
             
                     # update parameters
                     if phase == 'train':
                         self.optimizer.step()
                         
-            # compute the loss and accuracy for the current batch
-            epoch_loss = current_loss / len(self.dataloaders[phase].dataset)
-            epoch_acc = float(current_correct) / len(self.dataloaders[phase].dataset)
-            
-            performances[phase+'_loss'].append(epoch_loss)
-            performances[phase+'_acc'].append(epoch_acc)
-            
-            # get current learning rate
-            for param_group in self.optimizer.param_groups:
-                lr = param_group['lr']
-            
-            # update lr decay schedule
-            if lr != performances['last_lr']:
-                performances['lr_decay'].append(epoch)
-            
-            # step on reduceLRonPlateau with val acc
-            if self.scheduler is not None and phase == 'val':
-                self.scheduler.step(epoch_acc)
+                # compute the loss and accuracy for the current batch
+                epoch_loss = current_loss / len(self.dataloaders[phase].dataset)
+                epoch_acc = float(current_correct) / len(self.dataloaders[phase].dataset)
+                
+                performances[phase+'_loss'].append(epoch_loss)
+                performances[phase+'_acc'].append(epoch_acc)
+                
+                # step on reduceLRonPlateau with val acc
+                if self.scheduler is not None:
+                    if 'val' in self.dataloaders.keys():
+                        if phase == 'val':
+                            self.scheduler.step(epoch_acc)
+                    else:
+                        self.scheduler.step(epoch_acc)
+                        
+                    # get current learning rate
+                    for param_group in self.optimizer.param_groups:
+                        lr = param_group['lr']
+                        
+                    # update lr decay schedule
+                    if lr != performances['last_lr']:
+                        performances['last_lr'] = lr
+                        performances['lr_decay'].append(epoch)
+                        
+                # getting confusion matrix on validation result
+                if phase == 'val':
+                    performances['val_result'] = self.compute_confusion_matrix(val_epoch_results, self.dataloaders[phase])
             
             elapsed['total'] += time() - timer['total']
             print('train_stream/currently completed epoch', epoch)
             
             # save all outputs
-            self.save_main_output(args = self.args, epoch = epoch, state = {
+            self.save_main_output('output/stream/training/', args = self.args, epoch = epoch, state = {
                     'model':self.model.net.state_dict(), 'optimizer':self.optimizer.state_dict(), 
                     'scheduler': None if self.scheduler == None else self.scheduler.state_dict()
                     }, output = performances, elapsed = elapsed)
@@ -293,41 +335,44 @@ class StreamTrainer(object):
 if __name__ == '__main__':
     from json import loads
     j = """{
-          "base_lr": 0.01, 
-          "batch_size": 32, 
-          "clip_len": 8, 
-          "crop_h": 112, 
-          "crop_w": 112, 
-          "dataset": "UCF-101", 
-          "debug_mode": "distributed", 
-          "debug_train_size": 4, 
-          "debug_val_size": 4, 
-          "device": "cuda:0", 
-          "dropout": 0.0, 
-          "epoch": 50, 
-          "is_batch_size": false, 
-          "is_debug_mode": true, 
-          "is_mean_sub": false, 
-          "is_rand_flip": false, 
-          "l2decay": 0.01, 
-          "last_step": -1, 
-          "loss_threshold": 0.0001, 
-          "lr_reduce_ratio": 0.1, 
-          "lr_scheduler": "dynamic", 
-          "min_lr": 0.0, 
-          "modality": "flow", 
-          "momentum": 0.1, 
-          "network": "r2p1d-34", 
-          "output_compare": [], 
-          "output_name": "", 
-          "patience": 10, 
-          "pretrain_model": "kinetic-s1m-d34-l32-of.pth.tar", 
-          "resize_h": 128, 
-          "resize_w": 171, 
-          "split": 3, 
-          "step_size": 10, 
-          "sub_batch_size": 4, 
-          "val_batch_size": 4
-        }"""
+      "base_lr": 0.01, 
+      "batch_size": 32, 
+      "clip_len": 8, 
+      "crop_h": 112, 
+      "crop_w": 112, 
+      "dataset": "UCF-101", 
+      "debug_mode": "distributed", 
+      "debug_train_size": 2, 
+      "debug_val_size": 4, 
+      "device": "cuda:0", 
+      "dropout": 0.0, 
+      "epoch": 3, 
+      "freeze_point": "none", 
+      "is_batch_size": false, 
+      "is_debug_mode": true, 
+      "is_mean_sub": false, 
+      "is_rand_flip": true, 
+      "l2decay": 0.01, 
+      "last_step": -1, 
+      "loss_threshold": 0.0001, 
+      "lr_reduce_ratio": 0.1, 
+      "lr_scheduler": "dynamic", 
+      "min_lr": 0.0, 
+      "modality": "rgb", 
+      "momentum": 0.1, 
+      "network": "r2p1d-18", 
+      "output_compare": [], 
+      "output_name": "test", 
+      "patience": 10, 
+      "pretrain_model": "none", 
+      "resize_h": 128, 
+      "resize_w": 171, 
+      "split": 1, 
+      "step_size": 10, 
+      "sub_batch_size": 2, 
+      "val_batch_size": 14,
+      "test_method": "none"
+    }"""
     temp = StreamTrainer(loads(j))
     temp.setup_training()
+    temp.train_net()
