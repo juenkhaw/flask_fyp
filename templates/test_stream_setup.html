@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+<script>
+    $(document).ready(function() {
+        $("#{{form.full_model.id}}").val('');
+        $("#{{form.full_model.id}}").change(function() {
+            var model = $("#{{form.full_model.id}}").val();
+            $("form *").prop("disabled", true);
+            $.ajax({
+                url: "/test_stream",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({model: model}),
+                success: function(response) {
+                    //console.log(response);
+                    $("#pkg_details").html(response.html);
+                    $("#{{form.device.id}}").val(response.device);
+                    $("#{{form.clip_len.id}}").val(response.clip_len);
+                    $("form *").prop("disabled", false);
+                }
+            });
+        });
+
+        $("#{{form.test_batch_size.id}}").change(function(){
+            $.ajax({
+                url: "/test_stream",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({batch: $(this).val()}),
+                success: function(response) {
+                }
+            });
+        });
+    });
+</script>
+<style>
+    .details {
+        height: 150px;
+        overflow: auto;
+    }
+
+    #args {
+        float: left;
+        margin-right: 20px;
+    }
+
+    table {
+        border-collapse: collapse;
+        border: 1px black solid;
+    }
+
+    td, th {
+        border: 1px black solid;
+        padding-right: 5px;
+        padding-left: 5px;
+        font-size: 14px;
+    }
+
+    .decimal {
+        display: block;
+        width: 80px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+</style>
+<form action="" method="POST" novalidate>
+    {{form.hidden_tag()}}
+    <fieldset>
+        <legend>Setup</legend>
+        <p>
+            {{form.full_model.label}}<br>
+            {{form.full_model}} <br>
+            {%for error in form.full_model.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+        <p>
+            <label>Package Overview</label>
+            <div id="pkg_details">
+            <span style="color: red;">No data available</span>
+        </div>
+        </p>
+        <p>
+            {{form.device.label}}<br>
+            {{form.device}}
+        </p>
+        <p>
+            {{form.test_method.label}}<br>
+            {{form.test_method}}<br>
+        </p>
+    </fieldset>
+    <fieldset>
+        <legend>Testing Batch</legend>
+        <p>
+            {{form.clip_len.label}}<br>
+            {{form.clip_len(size=5)}}<br>
+            {%for error in form.clip_len.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+        <p>
+            {{form.test_batch_size.label}}<br>
+            {{form.test_batch_size(size=20)}}<br>
+
+            {%for error in form.test_batch_size.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+        <p>
+            {{form.test_subbatch_size.label}}<br>
+            {{form.test_subbatch_size(size=20)}}<br>
+
+            {%for error in form.test_subbatch_size.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+    </fieldset>
+    <p>{{form.submit}}</p>
+    </form>
+{% endblock %}

@@ -1,0 +1,40 @@
+
+<div class="details" id="args">
+    <table>
+        <thead>
+            <th>Argument</th>
+            <th>Parameter</th>
+        </thead>
+    <tbody>
+    {% for k, v in args.items() %}
+    <tr>
+        <td>{{k}}</td>
+        <td>{{v}}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+</div>
+
+<div class="details" id="training">
+    <table>
+        <thead>
+            <th>Epoch</th>
+            <th><span class="decimal">Train Loss</span></th>
+            <th><span class="decimal">Val Loss</span></th>
+            <th><span class="decimal">Train Acc</span></th>
+            <th><span class="decimal">Val Acc</span></th>
+        </thead>
+    <tbody>
+    {% for e in range(epoch) %}
+    <tr>
+        <td>{{e + 1}}</td>
+        <td><span class="decimal">{{training['train_loss'][e]}}</span></td>
+        <td><span class="decimal">{{training['val_loss'][e]}}</span></td>
+        <td><span class="decimal">{{training['train_acc'][e]}}</span></td>
+        <td><span class="decimal">{{training['val_acc'][e]}}</span></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+</div>

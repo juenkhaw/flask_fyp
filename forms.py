@@ -30,6 +30,19 @@ def num_range(min = None, max = None, dependant = None):
                 
     return _num_range
 
+def validate_dataset_path(form, field):
+    try:
+        dirs = os.listdir(field.data)
+    except:
+        raise ValidationError('The path specified could not be read')
+    
+    if not all(x in dirs for x in ['rgb', 'flow']) :
+        raise ValidationError('The path specified does not contain rgb/flow folder')
+        
+def validate_empty_select(form, field):
+    if field.data == '':
+        raise ValidationError('This selection is empty')
+
 class TrainStreamForm(FlaskForm):
     
     _gpu_names = []
@@ -108,11 +121,57 @@ class TrainStreamForm(FlaskForm):
         for net in BASE_CONFIG['network'].keys():
             self.freeze_point.choices.extend([(x, x) for x in BASE_CONFIG['network'][net]['endpoint']])
     
-    def validate_dataset_path(form, field):
-        try:
-            dirs = os.listdir(field.data)
-        except:
-            raise ValidationError('The path specified could not be read')
+class ResumeStreamForm(FlaskForm):
+    
+    # basic setup
+    half_model = SelectField(u'Select Model', validators=[InputRequired(), validate_empty_select])
+    device = SelectField(u'Device', choices = [], validators=[InputRequired()])
+    epoch = IntegerField(u'Epoch', validators=[InputRequired(), num_range(min = 1)])
+    
+    # training batch settings
+    sub_batch_size = IntegerField(u'Training Sub-Batch Size', validators=[InputRequired(), num_range(min = 1, max = 32, dependant=[None, 'batch_size'])])
+    val_batch_size = IntegerField(u'Val Batch Size', validators=[InputRequired(), num_range(min = 1, max = 32, dependant=[None, 'batch_size'])])
+    
+    # output
+    output_name = StringField(u'Output File Name')
+    output_compare = SelectMultipleField(u'Comparing with Other Models')
+    
+    submit = SubmitField('Start')
+    
+    def __init__(self, gpu_names):
+        super(ResumeStreamForm, self).__init__()
         
-        if not all(x in dirs for x in ['rgb', 'flow']) :
-            raise ValidationError('The path specified does not contain rgb/flow folder')
+        self.half_model.choices = [('', '')]
+        self.half_model.choices.extend([(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x])
+        
+        self._gpu_names = [('cuda:'+str(i), 'CUDA:'+str(i)+' '+gpu_names[i]) for i in range(len(gpu_names))]
+        self._gpu_names.extend([('cpu', 'CPU')])
+        self.device.choices = self._gpu_names
+                
+        self.output_compare.choices = [(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x]
+        
+class TestStreamForm(FlaskForm):
+    
+    # basic setup
+    full_model = SelectField(u'Select Model', validators=[InputRequired(), validate_empty_select])
+    test_method = SelectField(u'Testing Method', choices=[('10-clips', '10-clips evenly distributed across video'), 
+                                                          ('10-crops', '10-crops on frames at the middle of video')], 
+                                validators=[InputRequired()])
+    device = SelectField(u'Device', choices = [], validators=[InputRequired()])
+    
+    # testing batch settings
+    clip_len = IntegerField(u'Testing Clip Length', validators=[InputRequired(), num_range(min = 1)])
+    test_batch_size = IntegerField(u'Testing Batch Size (number of samples with 10 clips each)', validators=[InputRequired(), num_range(min = 1)], default = 32)
+    test_subbatch_size = IntegerField(u'Subbatch Size (number of clips per f-prop)', validators=[InputRequired(), num_range(min = 1, max = 320, dependant=[None, '10x of test batch size'])], default = 320)
+    
+    submit = SubmitField('Start')
+    
+    def __init__(self, gpu_names):
+        super(TestStreamForm, self).__init__()
+        
+        self.full_model.choices = [('', '')]
+        self.full_model.choices.extend([(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x])
+        
+        self._gpu_names = [('cuda:'+str(i), 'CUDA:'+str(i)+' '+gpu_names[i]) for i in range(len(gpu_names))]
+        self._gpu_names.extend([('cpu', 'CPU')])
+        self.device.choices = self._gpu_names

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+<script>
+    $(document).ready(function() {
+        $("#{{form.half_model.id}}").val('');
+        $("#{{form.half_model.id}}").change(function() {
+            var model = $("#{{form.half_model.id}}").val();
+            $("form *").prop("disabled", true);
+            $.ajax({
+                url: "/resume_stream",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({model: model}),
+                success: function(response) {
+                    //console.log(response);
+                    $("#pkg_details").html(response.html);
+                    $("#{{form.device.id}}").val(response.device);
+                    $("#{{form.sub_batch_size.id}}").val(response.sub);
+                    $("#{{form.val_batch_size.id}}").val(response.val);
+                    $("#{{form.output_name.id}}").val(response.name);
+                    $("#{{form.output_compare.id}}").html(response.compare_html);
+                    $("#{{form.output_compare.id}}").val(response.compare);
+                    $("form *").prop("disabled", false);
+                }
+            });
+        });
+    });
+</script>
+<style>
+    .details {
+        height: 150px;
+        overflow: auto;
+    }
+
+    #args {
+        float: left;
+        margin-right: 20px;
+    }
+
+    table {
+        border-collapse: collapse;
+        border: 1px black solid;
+    }
+
+    td, th {
+        border: 1px black solid;
+        padding-right: 5px;
+        padding-left: 5px;
+        font-size: 14px;
+    }
+
+    .decimal {
+        display: block;
+        width: 80px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+</style>
+<form action="" method="POST" novalidate>
+    {{form.hidden_tag()}}
+    <fieldset>
+        <legend>Setup</legend>
+        <p>
+            {{form.half_model.label}}<br>
+            {{form.half_model}} <br>
+            {%for error in form.half_model.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+        <p>
+            <label>Package Overview</label>
+            <div id="pkg_details">
+            <span style="color: red;">No data available</span>
+        </div>
+        </p>
+        <p>
+            {{form.device.label}}<br>
+            {{form.device}}
+        </p>
+        <p>
+            {{form.epoch.label}}<br>
+            {{form.epoch(size=10)}}<br>
+            {%for error in form.epoch.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+    </fieldset>
+    <fieldset>
+        <legend>Training and Validation Batch</legend>
+        <p>
+            {{form.sub_batch_size.label}}<br>
+            {{form.sub_batch_size(size=20, placeholder = 'for each training f/b-prop')}}<br>
+
+            {%for error in form.sub_batch_size.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+        <p>
+            {{form.val_batch_size.label}}<br>
+            {{form.val_batch_size(size=20, placeholder = 'for each validation f-prop')}}<br>
+
+            {%for error in form.val_batch_size.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+    </fieldset>
+    <fieldset>
+        <legend>Output</legend>
+        <p>
+            {{form.output_name.label}}<br>
+            {{form.output_name(size=30, placeholder="Leave it blank if using the same name")}}<br>
+            {%for error in form.output_name.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+        <p>
+            {{form.output_compare.label}}<br>
+            {{form.output_compare}}<br>
+        </p>
+    </fieldset>
+    <p>{{form.submit}}</p>
+    </form>
+{% endblock %}
