@@ -142,7 +142,9 @@ class ResumeStreamForm(FlaskForm):
         super(ResumeStreamForm, self).__init__()
         
         self.half_model.choices = [('', '')]
-        self.half_model.choices.extend([(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x])
+        # making sure the state and output files are all both existed for the models
+        state_list = os.listdir('output/stream/state')
+        self.half_model.choices.extend([(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x and x in state_list])
         
         self._gpu_names = [('cuda:'+str(i), 'CUDA:'+str(i)+' '+gpu_names[i]) for i in range(len(gpu_names))]
         self._gpu_names.extend([('cpu', 'CPU')])
@@ -164,13 +166,20 @@ class TestStreamForm(FlaskForm):
     test_batch_size = IntegerField(u'Testing Batch Size (number of samples with 10 clips each)', validators=[InputRequired(), num_range(min = 1)], default = 32)
     test_subbatch_size = IntegerField(u'Subbatch Size (number of clips per f-prop)', validators=[InputRequired(), num_range(min = 1, max = 320, dependant=[None, '10x of test batch size'])], default = 320)
     
+    # debugging mode
+    is_debug_mode = BooleanField(u'Enable Debugging Mode')
+    debug_mode = SelectField(u'Data Selection Mode', choices = [('peek','Peek (select first N samples regardless of label)'), ('distributed','Distributed (select first N samples across all labels)')], validators=[InputRequired()])
+    debug_test_size = IntegerField(u'Test Set Size', default = 32, validators=[InputRequired()])
+    
     submit = SubmitField('Start')
     
     def __init__(self, gpu_names):
         super(TestStreamForm, self).__init__()
         
         self.full_model.choices = [('', '')]
-        self.full_model.choices.extend([(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x])
+        # making sure the state and output files are all both existed for the models
+        state_list = os.listdir('output/stream/state')
+        self.full_model.choices.extend([(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x and x in state_list])
         
         self._gpu_names = [('cuda:'+str(i), 'CUDA:'+str(i)+' '+gpu_names[i]) for i in range(len(gpu_names))]
         self._gpu_names.extend([('cpu', 'CPU')])

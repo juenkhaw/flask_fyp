@@ -117,8 +117,9 @@ def train_stream():
             return jsonify({'html':form.freeze_point})
             
         else: # if initialization is done
-            print('train_stream/st/state/INIT', st.state['INIT'])
-            if st.state['INIT']:
+            print('train_stream/st/update/progress', st.update['progress'])
+            if st.update['progress']:
+                st.update['progress'] = False
                 return 'Training Start'
             else: # else do nothing
                 return ''
@@ -219,7 +220,7 @@ def test_stream():
                 p_epoch = p['epoch']
                 del p
                 return jsonify({'html':render_template('resume_stream_properties.html', args = p_args, training = p_training, epoch = p_epoch), 
-                                'device': p_args['device'], 'clip_len':p_args['clip_len']})
+                                'device': p_args['device'], 'clip_len':p_args['clip_len'], 'debug':p_args['is_debug_mode']})
     
         elif 'batch' in req.keys(): # update subbatch size validator
             form.test_subbatch_size.validators[1] = num_range(min = 1, max = int(req['batch']) * 10, dependant=[None, '10x of test batch size'])

@@ -1,8 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
 <script>
+    function update_debug_option() {
+        if($("#{{form.is_debug_mode.id}}").is(":checked")) {
+            $("#debug_option").show();
+        } else {
+            $("#debug_option").hide();
+            $("#{{form.debug_test_size.id}}").val(32);
+        }
+    }
+
     $(document).ready(function() {
         $("#{{form.full_model.id}}").val('');
+        update_debug_option();
+
         $("#{{form.full_model.id}}").change(function() {
             var model = $("#{{form.full_model.id}}").val();
             $("form *").prop("disabled", true);
@@ -16,6 +27,8 @@
                     $("#pkg_details").html(response.html);
                     $("#{{form.device.id}}").val(response.device);
                     $("#{{form.clip_len.id}}").val(response.clip_len);
+                    $("#{{form.is_debug_mode.id}}").prop("checked", response.debug);
+                    update_debug_option();
                     $("form *").prop("disabled", false);
                 }
             });
@@ -30,6 +43,10 @@
                 success: function(response) {
                 }
             });
+        });
+
+        $("#{{form.is_debug_mode.id}}").change(function() {
+            update_debug_option();
         });
     });
 </script>
@@ -115,6 +132,26 @@
             <span style="color: red;">[{{error}}]</span><br>
             {%endfor%}
         </p>
+    </fieldset>
+    <fieldset>
+        <legend>Debugging</legend>
+        <p>
+            {{form.is_debug_mode}} {{form.is_debug_mode.label}}
+        </p>
+        <fieldset id="debug_option">
+            <legend>Test Run on Small Batch</legend>
+        <p>
+            {{form.debug_mode.label}}<br>
+            {{form.debug_mode}}<br>
+        </p>
+        <p>
+            {{form.debug_test_size.label}}<br>
+            {{form.debug_test_size(size=20)}}<br>
+            {%for error in form.debug_test_size.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+        </fieldset>
     </fieldset>
     <p>{{form.submit}}</p>
     </form>
