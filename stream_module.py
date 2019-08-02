@@ -396,7 +396,7 @@ class StreamTrainer(object):
             self.save_main_output('output/stream/training/', args = self.args, epoch = self.epoch,
                                   output = performances, elapsed = elapsed)
             torch.save({
-                    'model':self.model.net.state_dic/(), 'optimizer':self.optimizer.state_dict(), 
+                    'model':self.model.net.state_dict(), 'optimizer':self.optimizer.state_dict(), 
                     'scheduler': None if self.scheduler == None else self.scheduler.state_dict()
                     }, 'output/stream/state/'+self.args['output_name']+'.pth.tar')
                     
