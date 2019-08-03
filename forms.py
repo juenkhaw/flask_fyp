@@ -54,7 +54,7 @@ class TrainStreamForm(FlaskForm):
     split = SelectField(u'Split', coerce = int, choices = [], validators=[InputRequired()], id = 'split_select')
     network = SelectField(u'Network Architecture', choices = [(x, x) for x in list(BASE_CONFIG['network'].keys())], validators=[InputRequired()])
     device = SelectField(u'Device', choices = [], validators=[InputRequired()])
-    epoch = IntegerField(u'Epoch', validators=[InputRequired(), num_range(min = 1)], default = 50)
+    epoch = IntegerField(u'Epoch', validators=[InputRequired(), num_range(min = 1)], default = 3) ###
     pretrain_model = SelectField(u'Pretrained Model', choices = [], validators=[InputRequired()])
     freeze_point = SelectField(u'Freeze Network (up to this point, exclusive)', coerce = str, choices = [], validators=[InputRequired()])
     
@@ -66,10 +66,10 @@ class TrainStreamForm(FlaskForm):
     l2decay = DecimalField(u'L2 Weight Decay', places = None, default = 0.01, validators=[InputRequired(), num_range(min = 0)])
     dropout = DecimalField(u'Dropout Ratio (Prob to be excluded)', places = None, default = 0, validators=[InputRequired(), num_range(min = 0, max = 1)])
     # for subbatch size
-    sub_batch_size = IntegerField(u'Training Sub-Batch Size', validators=[InputRequired(), num_range(min = 1, max = 32, dependant=[None, 'batch_size'])])
-    val_batch_size = IntegerField(u'Val Batch Size', validators=[InputRequired(), num_range(min = 1, max = 32, dependant=[None, 'batch_size'])])
+    sub_batch_size = IntegerField(u'Training Sub-Batch Size', validators=[InputRequired(), num_range(min = 1, max = 32, dependant=[None, 'batch_size'])], default = 3) ###
+    val_batch_size = IntegerField(u'Val Batch Size', validators=[InputRequired(), num_range(min = 1, max = 32, dependant=[None, 'batch_size'])], default = 8) ###
     # for optmizer scheduler
-    lr_scheduler = SelectField(u'LR Schedule Scheme', choices=[('none', 'None'), ('stepLR', 'Reduce by Epoch'), ('dynamic', 'Reduce on Plateau')], validators=[InputRequired()])
+    lr_scheduler = SelectField(u'LR Schedule Scheme', choices=[('none', 'None'), ('stepLR', 'Reduce by Epoch'), ('dynamic', 'Reduce on Plateau')], validators=[InputRequired()], default = 'dynamic') ###
     lr_reduce_ratio = DecimalField(u'LR Decay Factor', places = None, default = 0.1, validators=[InputRequired()])
     # for reduce by step
     step_size = IntegerField(u'Epoch Step', default = 10, validators=[InputRequired(), num_range(min = 1)])
@@ -89,10 +89,10 @@ class TrainStreamForm(FlaskForm):
     is_rand_flip = BooleanField(u'Enable Random Vertical Flipping')
     
     # debugging mode
-    is_debug_mode = BooleanField(u'Enable Debugging Mode')
+    is_debug_mode = BooleanField(u'Enable Debugging Mode', default = True) ###
     debug_mode = SelectField(u'Data Selection Mode', choices = [('peek','Peek (select first N samples regardless of label)'), ('distributed','Distributed (select first N samples across all labels)')], validators=[InputRequired()])
-    debug_train_size = IntegerField(u'Train Set Size', default = 32, validators=[InputRequired()])
-    debug_val_size = IntegerField(u'Validation Set Size', default = 32, validators=[InputRequired()])
+    debug_train_size = IntegerField(u'Train Set Size', default = 8, validators=[InputRequired()]) ###
+    debug_val_size = IntegerField(u'Validation Set Size', default = 8, validators=[InputRequired()]) ###
     
     # output
     output_name = StringField(u'Output File Name')

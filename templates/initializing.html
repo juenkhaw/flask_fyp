@@ -5,10 +5,9 @@
         <script>
             $(document).ready(function(){
                 interval = setInterval(check_init, 2000);
-
             });
 
-            function check_init(init_done) {
+            function check_init() {
                 $.ajax({
                         url: '/train_stream',
                         type: 'POST',
@@ -27,6 +26,6 @@
         </script>
     </head>
     <body>
-        <div style="text-align: center; margin-top: 10%"><h2>Initializing Environment...</h2></div>
+        <div style="text-align: center; margin-top: 10%"><h2>Initializing Workplace...</h2></div>
     </body>
 </html>

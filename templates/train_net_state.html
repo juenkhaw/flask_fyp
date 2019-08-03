@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script>
+    $(document).ready(function() {
+        check_update();
+        interval = setInterval(check_update, 5000);
+    });
+
+    var graphs = "#main_loss, #main_acc, #train_loss, #train_acc, #val_loss, #val_acc"
+
+    function check_update() {
+        $.ajax({
+                url: '/train_stream',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({update: true}),
+                success: function(response) {
+                    // if response is not empty, initialization has done
+                    //console.log('initializing.html/response '+response)
+                    //console.log(response.no_compare);
+                    if(response) {
+                        if(response.no_compare) {
+                            $("#compare_state_text").html("No models are selected for comparison")
+                        }
+                        if(response.progress) {
+                            console.log('update progress');
+                            $("#progress").html(response.progress_html);
+                        }
+                        if(response.result) {
+                            console.log('update result');
+                            $(".default_text").hide(); 
+                            $("#main_loss, #main_acc").html("Updating").show();
+                            $("#main_loss").load("{{url_for('static', filename='graph/main_loss.html')}}")
+                            $("#main_acc").load("{{url_for('static', filename='graph/main_acc.html')}}")
+                            if(!response.no_compare) {
+                                $("#train_loss, #train_acc, #val_loss, #val_acc").html("Updating");
+                                $("#train_loss").load("{{url_for('static', filename='graph/compare_train_loss.html')}}")
+                                $("#train_acc").load("{{url_for('static', filename='graph/compare_train_acc.html')}}")
+                                $("#val_loss").load("{{url_for('static', filename='graph/compare_val_loss.html')}}")
+                                $("#val_acc").load("{{url_for('static', filename='graph/compare_val_acc.html')}}")
+                            }
+                        }
+                        if(response.complete) {
+                            clearInterval(interval);
+                            $("#progress_status").html('<b>Completed</b>');
+                        }
+                    }
+                }
+            });
+    }
+</script>
+
+<style>
+    #outer {
+        width: 1050px;
+        background-color: lightgray;
+        margin: auto;
+    }
+
+    .title {
+        text-align: center;
+        font-weight: bold;
+        background: white;
+        border: 1px black solid;
+        padding: 5px;
+    }
+
+    .content {
+        padding-left: 10px;
+        padding-right: 10px;
+        text-align: center;
+    }
+
+    #progress {
+        width:40%;
+        display: inline-block;
+    }
+
+    #args {
+        height: 150px;
+        overflow: auto;
+        display: inline-block;
+    }
+
+    #args table {
+        border-collapse: collapse;
+        border: 1px black solid;
+    }
+
+    #args table td, #args table th {
+        border: 1px black solid;
+        font-size: 14px;
+        padding: 5px;
+    }
+
+    td, th {
+        padding-right: 10px;
+    }
+
+    .graph {
+        margin: auto;
+        display: inline-block;
+    }
+
+    #main_loss, #main_acc {
+        width: 480px;
+        height: 300px;
+    }
+
+    #train_loss, #train_acc, #val_loss, #val_acc {
+        width: 250px;
+        height: 300px;
+    }
+
+    .default_text {
+        color: red;
+        text-align: center;
+    }
+</style>
+
+<div id="outer">
+    <p class="title">Progress</p>
+    <div class="content">
+        <table id="progress">
+            <tbody>
+                <tr>
+                    <td>Current Epoch</td>
+                    <td><b>0 / 0</b></td>
+                </tr>
+                <tr>
+                    <td>Current Phase</td>
+                    <td><b>null</b></td>
+                </tr>
+                <tr>
+                    <td>Current Batch</td>
+                    <td><b>0 / 0</b></td>
+                </tr>
+                <tr>
+                    <td>Elapsed Time</td>
+                    <td><b>00:00:00</b></td>
+                </tr>
+                <tr>
+                    <td>Actual Training Time</td>
+                    <td><b>00:00:00</b></td>
+                </tr>
+                <tr>
+                    <td>Status</td>
+                    <td id="progress_status">In Progress</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="details" id="args">
+            <table>
+                <thead>
+                    <th>Argument</th>
+                    <th>Parameter</th>
+                </thead>
+            <tbody>
+            {% for k, v in st.args.items() %}
+            <tr>
+                <td>{{k}}</td>
+                <td>{{v}}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+            </table>
+        </div>
+    </div>
+    <p class="title">Training State</p>
+    <div class="content">
+        <p class="default_text">No data available yet</p>
+        <div class="graph" id="main_loss">
+            
+        </div>
+        <div class="graph" id="main_acc">
+
+        </div>
+    </div>
+    <p class="title">State Comparison</p>
+    <div class="content">
+        <p id = "compare_state_text" class="default_text">No data available yet</p>
+        <div class="graph" id="train_loss">
+            
+        </div>
+        <div class="graph" id="train_acc">
+
+        </div>
+        <div class="graph" id="val_loss">
+            
+        </div>
+        <div class="graph" id="val_acc">
+
+        </div>
+    </div>
+    <p class="title">Class-Specific Validation Scores/Accuracy</p>
+    <div class="content">
+        <p class="default_text">No data available yet</p>
+    </div>
+</div>
+
+{% endblock %}

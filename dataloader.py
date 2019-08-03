@@ -15,55 +15,55 @@ from random import random
 from glob import glob
 from os import listdir, path
 
-#from __init__ import BASE_CONFIG
+from . import BASE_CONFIG
 
-BASE_CONFIG = {
-"channel": {
-        "rgb" : 3,
-        "flow" : 2
-},
-"network":
-    {
-        "r2p1d-18":
-                {
-                "module":"r2p1d",
-                "class":"R2P1D18Net"
-                },
-        "r2p1d-34":
-                {
-                "module":"r2p1d",
-                "class":"R2P1D34Net"
-                },
-        "i3d":
-                {
-                "module":"i3d",
-                "class":"InceptionI3D"
-                }
-    },
-"dataset":
-    {
-        "UCF-101":
-                {
-                "label_num" : 101,
-                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
-                "split" : 3,
-                "label_index_txt" : "classInd.txt",
-                "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
-                "val_txt" : ["ucf_validationlist01.txt", "ucf_validationlist02.txt", "ucf_validationlist03.txt"],
-                "test_txt" : ["ucf_testlist01.txt", "ucf_testlist02.txt", "ucf_testlist03.txt"]
-                },
-        "HMDB-51":
-                {
-                "label_num" : 51,
-                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\HMDB-51",
-                "split" : 3,
-                "label_index_txt" : "classInd.txt", 
-                "train_txt" : ["hmdb_trainlist01.txt", "hmdb_trainlist02.txt", "hmdb_trainlist03.txt"],
-                "val_txt" : [], 
-                "test_txt" : ["hmdb_testlist01.txt", "hmdb_testlist02.txt", "hmdb_testlist03.txt"]
-                }
-    }
-}
+#BASE_CONFIG = {
+#"channel": {
+#        "rgb" : 3,
+#        "flow" : 2
+#},
+#"network":
+#    {
+#        "r2p1d-18":
+#                {
+#                "module":"r2p1d",
+#                "class":"R2P1D18Net"
+#                },
+#        "r2p1d-34":
+#                {
+#                "module":"r2p1d",
+#                "class":"R2P1D34Net"
+#                },
+#        "i3d":
+#                {
+#                "module":"i3d",
+#                "class":"InceptionI3D"
+#                }
+#    },
+#"dataset":
+#    {
+#        "UCF-101":
+#                {
+#                "label_num" : 101,
+#                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
+#                "split" : 3,
+#                "label_index_txt" : "classInd.txt",
+#                "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
+#                "val_txt" : ["ucf_validationlist01.txt", "ucf_validationlist02.txt", "ucf_validationlist03.txt"],
+#                "test_txt" : ["ucf_testlist01.txt", "ucf_testlist02.txt", "ucf_testlist03.txt"]
+#                },
+#        "HMDB-51":
+#                {
+#                "label_num" : 51,
+#                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\HMDB-51",
+#                "split" : 3,
+#                "label_index_txt" : "classInd.txt", 
+#                "train_txt" : ["hmdb_trainlist01.txt", "hmdb_trainlist02.txt", "hmdb_trainlist03.txt"],
+#                "val_txt" : [], 
+#                "test_txt" : ["hmdb_testlist01.txt", "hmdb_testlist02.txt", "hmdb_testlist03.txt"]
+#                }
+#    }
+#}
                 
 def generate_subbatches(sbs, *tensors):
     """
