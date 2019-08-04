@@ -13,8 +13,7 @@ import cv2
 from random import random
 
 from glob import glob
-from os import listdir, path, makedirs
-from shutil import copy2
+from os import listdir, path
 
 from . import BASE_CONFIG
 
@@ -483,31 +482,19 @@ class Videoset(Dataset):
         """
         INTERNAL USE ONLY
         """
-        index = 0
-        save_path = path.join('static', self._args['dataset'], self._mode)
-        if not path.exists(save_path):
-            makedirs(save_path)
-        for i in range(self._dataset_info['label_num']):
-            if self._Y_freq[i] == 0:
-                continue
-            else:
-                #print(i)
-                current_sample = glob(path.join(self._base_dir, self._X_path[index][0], '*.jpg'))[0]
-                copy2(current_sample, path.join(save_path,self._label_list[i]+'.jpg'))
-                index += self._Y_freq[i]
+        pass
 
 if __name__ == '__main__':
-    temp = Videoset({'dataset':'UCF-101', 'modality':'rgb', 'split':1, 'is_debug_mode':0, 'debug_mode':'distributed', 
+    temp = Videoset({'dataset':'UCF-101', 'modality':'flow', 'split':1, 'is_debug_mode':1, 'debug_mode':'distributed', 
                      'debug_train_size':4, 'clip_len':8, 'resize_h':128, 'resize_w':171, 'crop_h':112, 
-                     'crop_w':112, 'is_mean_sub':False, 'is_rand_flip':False, 'debug_test_size':4, 
-                     'test_method':'10-crops', 'debug_test_size':4}, 'val')
-    temp._read_first_frame_forach_label()
-#    a = temp.__getitem__(33)
-#    at = transform_buffer(a, True)
-#    for i in range(8):
-#        #cv2.imshow('t', cv2.cvtColor(at[4, i], cv2.COLOR_RGB2BGR))
-#        cv2.imshow('u', at[9, i, :, :, 0])
-#        cv2.imshow('v', at[9, i, :, :, 1])
-#        cv2.waitKey()
-#    cv2.destroyAllWindows()
+                     'crop_w':112, 'is_mean_sub':True, 'is_rand_flip':True, 'debug_test_size':4, 
+                     'test_method':'10-crops', 'debug_test_size':4}, 'test')
+    a = temp.__getitem__(33)
+    at = transform_buffer(a, True)
+    for i in range(8):
+        #cv2.imshow('t', cv2.cvtColor(at[4, i], cv2.COLOR_RGB2BGR))
+        cv2.imshow('u', at[9, i, :, :, 0])
+        cv2.imshow('v', at[9, i, :, :, 1])
+        cv2.waitKey()
+    cv2.destroyAllWindows()
     #temp = Videoset({'dataset':'HMDB-51', 'modality':'rgb', 'split':1}, 'train')
