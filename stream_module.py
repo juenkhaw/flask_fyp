@@ -240,7 +240,7 @@ class StreamTrainer(object):
         for i, f in enumerate(freq):
             # based on predicted label
             pred = np.argmax(result[count:count + f], axis = 1)
-            val_result['pred'][i] = np.bincount(pred, minlength=size[1]) / f * 100
+            val_result['pred'][i] = np.bincount(pred, minlength=size[1]) / f
             
             # based on softmax scores
             val_result['score'][i] = np.sum(result[count:count+f], axis=0) / f
