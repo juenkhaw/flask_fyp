@@ -12,17 +12,17 @@
         <td><b>{{st.batch}} / {{st.total_batch}}</b></td>
     </tr>
     <tr>
-        <td>Elapsed Time</td>
-        {% set sec = (st.elapsed['total'] % 60)|int %}
-        {% set min = (st.elapsed['total'] // 60)|int %}
-        {% set hr = (st.elapsed['total'] // 3600)|int %}
-        <td><b>{{hr}}:{{min}}:{{sec}}</b></td>
-    </tr>
-    <tr>
         <td>Actual Training Time</td>
         {% set sec = (st.elapsed['train'] % 60)|int %}
         {% set min = (st.elapsed['train'] // 60)|int %}
         {% set hr = (st.elapsed['train'] // 3600)|int %}
+        <td><b>{{hr}}:{{min}}:{{sec}}</b></td>
+    </tr>
+    <tr>
+        <td>Total Elapsed Time</td>
+        {% set sec = (st.elapsed['total'] % 60)|int %}
+        {% set min = (st.elapsed['total'] // 60)|int %}
+        {% set hr = (st.elapsed['total'] // 3600)|int %}
         <td><b>{{hr}}:{{min}}:{{sec}}</b></td>
     </tr>
     <tr>
