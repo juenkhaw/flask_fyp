@@ -11,7 +11,7 @@ from flask import render_template, url_for, request, jsonify, redirect
 import torch
 
 from threading import Thread
-from os import listdir
+from os import listdir, path
 from time import sleep
 
 from .forms import TrainStreamForm, num_range, SelectField, ResumeStreamForm, TestStreamForm
@@ -52,7 +52,11 @@ def form_to_dict(form):
 
 @app.route('/')
 @app.route('/index')
-def index():   
+def index():
+    base_meta = {
+        'title' : 'two-stream action recognition benchmarking', 
+        'header' : 'Index'
+        }
     return render_template('index.html', base_meta = base_meta, device_info = device_info)
 
 def exec_train_stream(st):
@@ -128,6 +132,7 @@ def train_stream():
             #print('train_stream/st/update/init', st.update['init'])
             if st.update['init']:
                 response = {'progress':st.update['progress'], 'result':st.update['result'], 'complete':st.update['complete'], 'no_compare':(st.compare == [])}
+                print(response)
                 
                 if st.update['progress']: # update progress status
                     st.update['progress'] = False
@@ -155,6 +160,7 @@ def train_stream():
 def exec_resume_stream(st):
     st.setup_resume_training()
     st.train_net()
+    st.update['complete'] = True
 
 @app.route('/resume_stream', methods=['GET', 'POST'])
 def resume_stream():
@@ -177,11 +183,11 @@ def resume_stream():
             # start the stream training thread
             if form.validate_on_submit():
                 #Thread(target = (lambda: st.init(form_to_dict(form)))).start()
-                st = StreamTrainer(form_to_dict(form))
-                #Thread(target = exec_resume_stream, args = (st,)).start()
                 print('resume_stream/form_success')
-                #return render_template('initializing.html')
-                return jsonify(form_to_dict(form))
+                st = StreamTrainer(form_to_dict(form))
+                Thread(target = exec_resume_stream, args = (st,)).start()
+                return render_template('initializing.html')
+                #return jsonify(form_to_dict(form))
             else:
                 for fieldName, errorMessages in form.errors.items():
                     for err in errorMessages:
@@ -190,7 +196,10 @@ def resume_stream():
         
         else: # there is already an istance of train streamer
             if st.update['init']: # if st is ready
-                return 'TRAINING RESUME'
+                #return 'TRAINING RESUME'
+                base_meta['title'] = 'resume_stream/'+st.args['output_name']
+                base_meta['header'] = 'Resume Stream Training - '+st.args['output_name']
+                return render_template('train_net_state.html', base_meta=base_meta, st=st)
             else:
                 return render_template('initializing.html')
             
@@ -214,9 +223,30 @@ def resume_stream():
                                 'val':p_args['val_batch_size'], 'name':p_args['output_name'], 
                                 'compare_html':form.output_compare, 'compare':p_args['output_compare']})
         else: # if initialization is done
-            print('resume_stream/st/update/init', st.update['init'])
+            #print('resume_stream/st/update/init', st.update['init'])
             if st.update['init']:
-                return 'Training Resume'
+                response = {'progress':st.update['progress'], 'result':st.update['result'], 'complete':st.update['complete'], 'no_compare':(st.compare == [])}
+                
+                if st.update['progress']: # update progress status
+                    st.update['progress'] = False
+                    response['progress_html'] = render_template('train_progress_div.html', st=st)
+                    
+                if st.update['result']: # update result
+                    st.update['result'] = False
+                    main_loss_graph(st.epoch, st.main_output['output']['train_loss'], st.main_output['output']['val_loss'])
+                    main_acc_graph(st.epoch, st.main_output['output']['train_acc'], st.main_output['output']['val_acc'])
+                    if st.compare != []:
+                        comparing_graph(st.main_output, st.compare, 'train_loss', 'loss')
+                        comparing_graph(st.main_output, st.compare, 'val_loss', 'loss')
+                        comparing_graph(st.main_output, st.compare, 'train_acc', 'accuracy')
+                        comparing_graph(st.main_output, st.compare, 'val_acc', 'accuracy')
+                    
+                if st.update['complete']:
+                    response['progress_html'] = render_template('train_progress_div.html', st=st)
+                    st = None
+                    
+                return jsonify(response)
+                
             else: # else do nothing
                 return ''
         

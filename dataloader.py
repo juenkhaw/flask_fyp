@@ -16,55 +16,55 @@ from glob import glob
 from os import listdir, path, makedirs
 from shutil import copy2
 
-from . import BASE_CONFIG
+#from . import BASE_CONFIG
 
-#BASE_CONFIG = {
-#"channel": {
-#        "rgb" : 3,
-#        "flow" : 2
-#},
-#"network":
-#    {
-#        "r2p1d-18":
-#                {
-#                "module":"r2p1d",
-#                "class":"R2P1D18Net"
-#                },
-#        "r2p1d-34":
-#                {
-#                "module":"r2p1d",
-#                "class":"R2P1D34Net"
-#                },
-#        "i3d":
-#                {
-#                "module":"i3d",
-#                "class":"InceptionI3D"
-#                }
-#    },
-#"dataset":
-#    {
-#        "UCF-101":
-#                {
-#                "label_num" : 101,
-#                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
-#                "split" : 3,
-#                "label_index_txt" : "classInd.txt",
-#                "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
-#                "val_txt" : ["ucf_validationlist01.txt", "ucf_validationlist02.txt", "ucf_validationlist03.txt"],
-#                "test_txt" : ["ucf_testlist01.txt", "ucf_testlist02.txt", "ucf_testlist03.txt"]
-#                },
-#        "HMDB-51":
-#                {
-#                "label_num" : 51,
-#                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\HMDB-51",
-#                "split" : 3,
-#                "label_index_txt" : "classInd.txt", 
-#                "train_txt" : ["hmdb_trainlist01.txt", "hmdb_trainlist02.txt", "hmdb_trainlist03.txt"],
-#                "val_txt" : [], 
-#                "test_txt" : ["hmdb_testlist01.txt", "hmdb_testlist02.txt", "hmdb_testlist03.txt"]
-#                }
-#    }
-#}
+BASE_CONFIG = {
+"channel": {
+        "rgb" : 3,
+        "flow" : 2
+},
+"network":
+    {
+        "r2p1d-18":
+                {
+                "module":"r2p1d",
+                "class":"R2P1D18Net"
+                },
+        "r2p1d-34":
+                {
+                "module":"r2p1d",
+                "class":"R2P1D34Net"
+                },
+        "i3d":
+                {
+                "module":"i3d",
+                "class":"InceptionI3D"
+                }
+    },
+"dataset":
+    {
+        "UCF-101":
+                {
+                "label_num" : 101,
+                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
+                "split" : 3,
+                "label_index_txt" : "classInd.txt",
+                "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
+                "val_txt" : ["ucf_validationlist01.txt", "ucf_validationlist02.txt", "ucf_validationlist03.txt"],
+                "test_txt" : ["ucf_testlist01.txt", "ucf_testlist02.txt", "ucf_testlist03.txt"]
+                },
+        "HMDB-51":
+                {
+                "label_num" : 51,
+                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\HMDB-51",
+                "split" : 3,
+                "label_index_txt" : "classInd.txt", 
+                "train_txt" : ["hmdb_trainlist01.txt", "hmdb_trainlist02.txt", "hmdb_trainlist03.txt"],
+                "val_txt" : [], 
+                "test_txt" : ["hmdb_testlist01.txt", "hmdb_testlist02.txt", "hmdb_testlist03.txt"]
+                }
+    }
+}
                 
 def generate_subbatches(sbs, *tensors):
     """
@@ -339,9 +339,6 @@ class Videoset(Dataset):
         else:
             self._X_path = np.array([[path.join(y, x.split(' ')[0]) for y in ['u', 'v']] for x in buffer])
             
-        # count on occurence of each label
-        self._Y_freq = np.bincount(self._Y)
-            
         # trim sample set if debugging mode is enabled
         if args['is_debug_mode']:
             indices = None
@@ -351,6 +348,7 @@ class Videoset(Dataset):
             else:
                 sample_num = args['debug_'+mode+'_size']
                 # ensure that sample number does not exceed the freq of least occurence class label
+                self._Y_freq = np.bincount(self._Y)
                 assert(sample_num <= np.min(self._Y_freq))
                 
                 # extract indices of sample to be selected
@@ -487,6 +485,8 @@ class Videoset(Dataset):
         save_path = path.join('static', self._args['dataset'], self._mode)
         if not path.exists(save_path):
             makedirs(save_path)
+        else:
+            if len(glob(path.join(save_path, '*.jpg'))) == self._dataset_info['label_num']: return
         for i in range(self._dataset_info['label_num']):
             if self._Y_freq[i] == 0:
                 continue
@@ -501,7 +501,7 @@ if __name__ == '__main__':
                      'debug_train_size':4, 'clip_len':8, 'resize_h':128, 'resize_w':171, 'crop_h':112, 
                      'crop_w':112, 'is_mean_sub':False, 'is_rand_flip':False, 'debug_test_size':4, 
                      'test_method':'10-crops', 'debug_test_size':4}, 'val')
-    temp._read_first_frame_forach_label()
+    #temp._read_first_frame_forach_label()
 #    a = temp.__getitem__(33)
 #    at = transform_buffer(a, True)
 #    for i in range(8):

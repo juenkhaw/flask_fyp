@@ -5,9 +5,24 @@
     $(document).ready(function() {
         check_update();
         interval = setInterval(check_update, 5000);
+
+        $("#val_type, #val_sort").change(function() {
+            update_val_img();
+        });
     });
 
-    var graphs = "#main_loss, #main_acc, #train_loss, #train_acc, #val_loss, #val_acc"
+    var graphs = "#main_loss, #main_acc, #train_loss, #train_acc, #val_loss, #val_acc";
+
+    function update_val_img() {
+        var metric = $("#val_type").val();
+        var sort = $("#val_sort").val();
+        var filename = metric + '_' + sort + '.jpg';
+        var folder = "{{st.args['output_name']}}";
+        if(folder === "") {
+            folder = "anonymous";
+        }
+        $("#val_img").html("<img src='static/stream_val_result/"+folder+"/"+filename+"'>");
+    }
 
     function check_update() {
         $.ajax({
@@ -40,10 +55,12 @@
                                 $("#val_loss").load("{{url_for('static', filename='graph/compare_val_loss.html')}}")
                                 $("#val_acc").load("{{url_for('static', filename='graph/compare_val_acc.html')}}")
                             }
+                            update_val_img();
                         }
                         if(response.complete) {
                             clearInterval(interval);
                             $("#progress_status").html('<b>Completed</b>');
+                            //redirect to inspect stream if possible
                         }
                     }
                 }
@@ -69,6 +86,7 @@
     .content {
         padding-left: 10px;
         padding-right: 10px;
+        padding-bottom: 10px;
         text-align: center;
     }
 
@@ -116,6 +134,14 @@
     .default_text {
         color: red;
         text-align: center;
+    }
+
+    #val_form {
+        text-align: left;
+    }
+
+    #val_img {
+        margin-left: -10px;
     }
 </style>
 
@@ -195,7 +221,23 @@
     </div>
     <p class="title">Class-Specific Validation Scores/Accuracy</p>
     <div class="content">
+        <div id="val_form">
+            <label for="val_type">Metric</label>&Tab;
+            <select id="val_type" name="val_type">
+                <option value="pred" selected>Averaged Accuracy</option>
+                <option value="score">Averaged Score</option>
+            </select>
+            <label for="val_sort">Sort</label>&Tab;
+            <select id="val_sort" name="val_sort">
+                <option value="none" selected>None</option>
+                <option value="desc">Best to Worst</option>
+                <option value="asc">Worst to Best</option>
+            </select>
+        </div>
         <p class="default_text">No data available yet</p>
+        <div class="graph" id="val_img">
+
+        </div>
     </div>
 </div>
 

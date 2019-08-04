@@ -6,8 +6,10 @@ import importlib
 from time import time
 from math import ceil
 import numpy as np
+from os import path
 
 from .dataloader import Videoset, generate_subbatches
+from .graph import cv_confusion_matrix
 from . import BASE_CONFIG
 #BASE_CONFIG = {
 #"channel": {
@@ -139,6 +141,7 @@ class StreamTrainer(object):
         train_dataloader = DataLoader(Videoset(self.args, 'train'), batch_size=self.args['batch_size'], shuffle=True)
         if BASE_CONFIG['dataset'][self.args['dataset']]['val_txt'] != []:
             val_dataloader = DataLoader(Videoset(self.args, 'val'), batch_size=self.args['val_batch_size'], shuffle=False)
+            val_dataloader.dataset._read_first_frame_forach_label()
             self.dataloaders = {'train': train_dataloader, 'val': val_dataloader}
         else:
             self.dataloaders = {'train': train_dataloader}
@@ -150,6 +153,7 @@ class StreamTrainer(object):
         """
         print('train_stream/preparing dataloaders')
         self.dataloaders = DataLoader(Videoset(self.args, 'test'), batch_size=self.args['test_batch_size'], shuffle=False)
+        self.dataloaders.dataset._read_first_frame_forach_label()
         
     def setup_LR_scheduler(self):
         # define LR scheduler
@@ -204,6 +208,8 @@ class StreamTrainer(object):
                                    weight_decay = self.args['l2decay'])
         self.optimizer.load_state_dict(state['optimizer'])
         
+        self.load_comparing_states()
+        
         self.setup_LR_scheduler()
         if self.scheduler != None:
             self.scheduler.load_state_dict(state['optimizer'])
@@ -214,6 +220,8 @@ class StreamTrainer(object):
         torch.cuda.empty_cache()
         print('resume_stream/setup completed for RESUMING TRAINER')
         self.update['init'] = True
+        self.update['result'] = True
+        self.save_cfm(self.main_output['output']['val_result'], 'val', self.dataloaders['val'])
     
     def setup_testing(self):
         # load output file of completed model, combining argument updates from resume form
@@ -232,11 +240,19 @@ class StreamTrainer(object):
         torch.cuda.empty_cache()
         print('test_stream/setup completed for TESTING')
         self.update['init'] = True
+        
+    def save_cfm(self, data, mode, dataloader):
+        for metric in ['pred', 'score']:
+            for sort in ['none', 'asc', 'desc']:
+                cv_confusion_matrix(path.join('static',self.args['dataset'],mode), data, 
+                                    dataloader.dataset._label_list, target = metric, sort = sort, 
+                                    output_path = path.join('static','stream_'+mode+'_result','anonymous' if self.args['output_name'] == '' else self.args['output_name']))
     
-    def save_main_output(self, path, **contents):
+    def save_main_output(self, _path, **contents):
         self.main_output = contents
+        
         if self.args['output_name'] != '':
-            torch.save(self.main_output, path+self.args['output_name']+'.pth.tar')
+            torch.save(self.main_output, _path+self.args['output_name']+'.pth.tar')
             
     def compute_confusion_matrix(self, result, dataloader):
         """
@@ -251,14 +267,18 @@ class StreamTrainer(object):
         
         count = 0
         for i, f in enumerate(freq):
-            # based on predicted label
-            pred = np.argmax(result[count:count + f], axis = 1)
-            val_result['pred'][i] = np.bincount(pred, minlength=size[1]) / f * 100
-            
-            # based on softmax scores
-            val_result['score'][i] = np.sum(result[count:count+f], axis=0) / f
-            
-            count += f
+            if f == 0:
+                val_result['pred'][i] = np.nan
+                val_result['score'][i] = np.nan
+            else:
+                # based on predicted label
+                pred = np.argmax(result[count:count + f], axis = 1)
+                val_result['pred'][i] = np.bincount(pred, minlength=size[1]) / f
+                
+                # based on softmax scores
+                val_result['score'][i] = np.sum(result[count:count+f], axis=0) / f
+                
+                count += f
             
         return val_result
         
@@ -402,6 +422,7 @@ class StreamTrainer(object):
                 # getting confusion matrix on validation result
                 if self.phase == 'val':
                     performances['val_result'] = self.compute_confusion_matrix(val_epoch_results, self.dataloaders[self.phase])
+                    self.save_cfm(performances['val_result'], 'val', self.dataloaders['val'])
             
             self.elapsed['total'] += time() - timer['total']
             print('train_stream/currently completed epoch', self.epoch)
