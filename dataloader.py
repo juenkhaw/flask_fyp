@@ -45,7 +45,8 @@ BASE_CONFIG = {
         "UCF-101":
                 {
                 "label_num" : 101,
-                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
+                #"base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
+                "base_path" : "../two-stream/tomar/data",
                 "split" : 3,
                 "label_index_txt" : "classInd.txt",
                 "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
@@ -322,7 +323,8 @@ class Videoset(Dataset):
         super(Videoset, self).__init__()
         
         # concatenate dataset base dir with specified modality
-        self._base_dir = path.join(self._dataset_info['base_path'], args['modality'])
+        #subfolder = 'jpegs_256' if args['modality'] == 'rgb' else 'tvl1_flow'
+        self._base_dir = path.join(self._dataset_info['base_path'], args['modality'])#, subfolder)
         
         # read in list of class label
         f_in = open(path.join(self._dataset_info['base_path'], self._dataset_info['label_index_txt']))
@@ -489,7 +491,7 @@ if __name__ == '__main__':
                      'debug_train_size':4, 'clip_len':8, 'resize_h':128, 'resize_w':171, 'crop_h':112, 
                      'crop_w':112, 'is_mean_sub':True, 'is_rand_flip':True, 'debug_test_size':4, 
                      'test_method':'10-crops', 'debug_test_size':4}, 'test')
-    a = temp.__getitem__(33)
+    a, _ = temp.__getitem__(33)
     at = transform_buffer(a, True)
     for i in range(8):
         #cv2.imshow('t', cv2.cvtColor(at[4, i], cv2.COLOR_RGB2BGR))

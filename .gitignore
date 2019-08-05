@@ -1,2 +1,8 @@
 
 *.tar
+*.jpg
+*.db
+static/graph/graph2.html
+*.html
+static/graph/graph.py
+*.pyc

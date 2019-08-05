@@ -6,9 +6,11 @@ import importlib
 from time import time
 from math import ceil
 import numpy as np
+from os import path
 
 from dataloader import Videoset, generate_subbatches
-#from __init__ import BASE_CONFIG
+#from .graph import cv_confusion_matrix
+#from . import BASE_CONFIG
 BASE_CONFIG = {
 "channel": {
         "rgb" : 3,
@@ -37,7 +39,8 @@ BASE_CONFIG = {
         "UCF-101":
                 {
                 "label_num" : 101,
-                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
+                #"base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
+                "base_path" : "../two-stream/tomar/data",
                 "split" : 3,
                 "label_index_txt" : "classInd.txt",
                 "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
@@ -59,14 +62,16 @@ BASE_CONFIG = {
 
 class StreamTrainer(object):
 
-    update = {'progress' : False, 'result' : False}
+    update = {'init': False, 'progress' : False, 'result' : False, 'complete' : False}
     batch = 0
     total_batch = 0
-    phase = ''
+    phase = 'null'
     epoch = 0
     args = {}
     model = None
     main_output = None
+    elapsed = None
+    compare = []
     
     def __init__(self, form_dict):
         super(StreamTrainer, self).__init__()
@@ -137,6 +142,7 @@ class StreamTrainer(object):
         train_dataloader = DataLoader(Videoset(self.args, 'train'), batch_size=self.args['batch_size'], shuffle=True)
         if BASE_CONFIG['dataset'][self.args['dataset']]['val_txt'] != []:
             val_dataloader = DataLoader(Videoset(self.args, 'val'), batch_size=self.args['val_batch_size'], shuffle=False)
+            val_dataloader.dataset._read_first_frame_forach_label()
             self.dataloaders = {'train': train_dataloader, 'val': val_dataloader}
         else:
             self.dataloaders = {'train': train_dataloader}
@@ -148,6 +154,7 @@ class StreamTrainer(object):
         """
         print('train_stream/preparing dataloaders')
         self.dataloaders = DataLoader(Videoset(self.args, 'test'), batch_size=self.args['test_batch_size'], shuffle=False)
+        self.dataloaders.dataset._read_first_frame_forach_label()
         
     def setup_LR_scheduler(self):
         # define LR scheduler
@@ -159,6 +166,10 @@ class StreamTrainer(object):
         elif self.args['lr_scheduler'] == 'dynamic':
             self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=self.args['patience'], 
                                                                   threshold=self.args['loss_threshold'], min_lr=self.args['min_lr'])
+            
+    def load_comparing_states(self):
+        if len(self.args['output_compare']) != 0:
+            self.compare = [torch.load('output/stream/training/'+x, map_location=lambda storage, loc: storage) for x in self.args['output_compare']]
         
     def setup_training(self):
         
@@ -172,8 +183,11 @@ class StreamTrainer(object):
                                    weight_decay = self.args['l2decay'])
         self.setup_LR_scheduler()
         
+        self.load_comparing_states()
+        
         torch.cuda.empty_cache()
         print('train_stream/setup completed for TRAINING')
+        self.update['init'] = True
         
     def setup_resume_training(self):
         # load output file of half-model, combining argument updates from resume form
@@ -195,13 +209,20 @@ class StreamTrainer(object):
                                    weight_decay = self.args['l2decay'])
         self.optimizer.load_state_dict(state['optimizer'])
         
+        self.load_comparing_states()
+        
         self.setup_LR_scheduler()
         if self.scheduler != None:
             self.scheduler.load_state_dict(state['optimizer'])
             
+        self.load_comparing_states()
+            
         del state
         torch.cuda.empty_cache()
         print('resume_stream/setup completed for RESUMING TRAINER')
+        self.update['init'] = True
+        self.update['result'] = True
+        self.save_cfm(self.main_output['output']['val_result'], 'val', self.dataloaders['val'])
     
     def setup_testing(self):
         # load output file of completed model, combining argument updates from resume form
@@ -219,11 +240,20 @@ class StreamTrainer(object):
         
         torch.cuda.empty_cache()
         print('test_stream/setup completed for TESTING')
+        self.update['init'] = True
+        
+    def save_cfm(self, data, mode, dataloader):
+        for metric in ['pred', 'score']:
+            for sort in ['none', 'asc', 'desc']:
+                cv_confusion_matrix(path.join('static',self.args['dataset'],mode), data, 
+                                    dataloader.dataset._label_list, target = metric, sort = sort, 
+                                    output_path = path.join('static','stream_'+mode+'_result','anonymous' if self.args['output_name'] == '' else self.args['output_name']))
     
-    def save_main_output(self, path, **contents):
+    def save_main_output(self, _path, **contents):
         self.main_output = contents
+        
         if self.args['output_name'] != '':
-            torch.save(self.main_output, path+self.args['output_name']+'.pth.tar')
+            torch.save(self.main_output, _path+self.args['output_name']+'.pth.tar')
             
     def compute_confusion_matrix(self, result, dataloader):
         """
@@ -238,14 +268,18 @@ class StreamTrainer(object):
         
         count = 0
         for i, f in enumerate(freq):
-            # based on predicted label
-            pred = np.argmax(result[count:count + f], axis = 1)
-            val_result['pred'][i] = np.bincount(pred, minlength=size[1]) / f
-            
-            # based on softmax scores
-            val_result['score'][i] = np.sum(result[count:count+f], axis=0) / f
-            
-            count += f
+            if f == 0:
+                val_result['pred'][i] = np.nan
+                val_result['score'][i] = np.nan
+            else:
+                # based on predicted label
+                pred = np.argmax(result[count:count + f], axis = 1)
+                val_result['pred'][i] = np.bincount(pred, minlength=size[1]) / f
+                
+                # based on softmax scores
+                val_result['score'][i] = np.sum(result[count:count+f], axis=0) / f
+                
+                count += f
             
         return val_result
         
@@ -258,11 +292,11 @@ class StreamTrainer(object):
         if self.main_output == None:
             performances = {'train_loss':[], 'train_acc':[], 'val_loss':[], 'val_acc':[], 'lr_decay':[], 'last_lr':None, 'val_result':None}
             epoch = 1
-            elapsed = {'total':0, 'train':0}
+            self.elapsed = {'total':0, 'train':0}
         else:
             performances = self.main_output['output']
             epoch = self.main_output['epoch'] + 1
-            elapsed = self.main_output['elapsed']
+            self.elapsed = self.main_output['elapsed']
             
         timer = {'total':0, 'train':0}
         
@@ -273,7 +307,7 @@ class StreamTrainer(object):
                 torch.cuda.empty_cache()
                 
                 # anticipating total batch count
-                self.batch = 1
+                self.batch = 0
                 self.total_batch = int(ceil(len(self.dataloaders[self.phase].dataset) / subbatch_count[self.phase]))
                 
                 # reset the loss and accuracy
@@ -292,6 +326,7 @@ class StreamTrainer(object):
                 for inputs, labels in self.dataloaders[self.phase]:
                     torch.cuda.empty_cache()
                     
+                    self.batch += 1
                     print('epoch', self.epoch, 'phase', self.phase, '| Current batch', str(self.batch), '/', str(self.total_batch), end = '\n')
                     self.update['progress'] = True
                     
@@ -342,7 +377,7 @@ class StreamTrainer(object):
                                 outputs = torch.cat((outputs, output['Softmax']))
                                 
                             # this is where actual training ends
-                            elapsed['train'] += time() - timer['train']
+                            self.elapsed['train'] += time() - timer['train']
                             
                     # avearging over validation results and compute val loss
                     if self.phase == 'val':
@@ -359,7 +394,7 @@ class StreamTrainer(object):
                         self.optimizer.step()
                         
                     # one batch done
-                    self.batch += 1
+                    
                         
                 # compute the loss and accuracy for the current batch
                 epoch_loss = current_loss / len(self.dataloaders[self.phase].dataset)
@@ -388,13 +423,14 @@ class StreamTrainer(object):
                 # getting confusion matrix on validation result
                 if self.phase == 'val':
                     performances['val_result'] = self.compute_confusion_matrix(val_epoch_results, self.dataloaders[self.phase])
+                    #self.save_cfm(performances['val_result'], 'val', self.dataloaders['val'])
             
-            elapsed['total'] += time() - timer['total']
+            self.elapsed['total'] += time() - timer['total']
             print('train_stream/currently completed epoch', self.epoch)
             
             # save all outputs
             self.save_main_output('output/stream/training/', args = self.args, epoch = self.epoch,
-                                  output = performances, elapsed = elapsed)
+                                  output = performances, elapsed = self.elapsed)
             torch.save({
                     'model':self.model.net.state_dict(), 'optimizer':self.optimizer.state_dict(), 
                     'scheduler': None if self.scheduler == None else self.scheduler.state_dict()
@@ -481,16 +517,43 @@ class StreamTrainer(object):
 if __name__ == '__main__':
     from json import loads
     j = """{
-        "clip_len": 8, 
-      "debug_mode": "peek", 
-      "debug_test_size": 16, 
-      "device": "cuda:0", 
-      "full_model": "test.pth.tar", 
-      "is_debug_mode": true, 
-      "test_batch_size": 32, 
-      "test_method": "10-clips", 
-      "test_subbatch_size": 10
-    }"""
+          "base_lr": 0.01, 
+          "batch_size": 32, 
+          "clip_len": 8, 
+          "crop_h": 112, 
+          "crop_w": 112, 
+          "dataset": "UCF-101", 
+          "debug_mode": "peek", 
+          "debug_train_size": 8, 
+          "debug_val_size": 8, 
+          "device": "cuda:0", 
+          "dropout": 0.0, 
+          "epoch": 3, 
+          "is_batch_size": false, 
+          "is_debug_mode": true, 
+          "is_mean_sub": false, 
+          "is_rand_flip": false, 
+          "l2decay": 0.01, 
+          "last_step": -1, 
+          "loss_threshold": 0.0001, 
+          "lr_reduce_ratio": 0.1, 
+          "lr_scheduler": "dynamic", 
+          "min_lr": 0.0, 
+          "modality": "rgb", 
+          "momentum": 0.1, 
+          "network": "r2p1d-18", 
+          "output_compare": [], 
+          "output_name": "", 
+          "patience": 10, 
+          "pretrain_model": "none", 
+          "resize_h": 128, 
+          "resize_w": 171, 
+          "split": 1, 
+          "step_size": 10, 
+          "sub_batch_size": 3, 
+          "val_batch_size": 8,
+          "test_method": "none"
+        }"""
     temp = StreamTrainer(loads(j))
-    temp.setup_testing()
-    temp.test_net()
+    temp.setup_training()
+    temp.train_net()
