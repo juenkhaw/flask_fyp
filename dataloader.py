@@ -323,8 +323,8 @@ class Videoset(Dataset):
         super(Videoset, self).__init__()
         
         # concatenate dataset base dir with specified modality
-        #subfolder = 'jpegs_256' if args['modality'] == 'rgb' else 'tvl1_flow'
-        self._base_dir = path.join(self._dataset_info['base_path'], args['modality'])#, subfolder)
+        subfolder = 'jpegs_256' if args['modality'] == 'rgb' else 'tvl1_flow'
+        self._base_dir = path.join(self._dataset_info['base_path'], args['modality'], subfolder)
         
         # read in list of class label
         f_in = open(path.join(self._dataset_info['base_path'], self._dataset_info['label_index_txt']))
