@@ -303,8 +303,11 @@ class StreamTrainer(object):
         for self.epoch in range(epoch, self.args['epoch'] + 1):
             timer['total'] = time()
             
-            for self.phase in self.dataloaders.keys():
+            for self.phase in ['train', 'val']:
                 torch.cuda.empty_cache()
+                
+                if self.phase == 'val' and 'val' not in self.dataloaders.keys():
+                    break
                 
                 # anticipating total batch count
                 self.batch = 0

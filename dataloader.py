@@ -318,7 +318,7 @@ class Videoset(Dataset):
         # making sure the dataset path given contains rgb and flow folders
         assert(path.exists(self._dataset_info['base_path']))
         assert(all([x in listdir(self._dataset_info['base_path']) for x in ['rgb', 'flow']]))
-        assert(all([x in listdir(path.join(self._dataset_info['base_path'], 'flow')) for x in ['u', 'v']]))
+        assert(all([x in listdir(path.join(self._dataset_info['base_path'], 'flow', 'tvl1_flow')) for x in ['u', 'v']]))
         
         super(Videoset, self).__init__()
         
