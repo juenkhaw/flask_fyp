@@ -40,7 +40,7 @@ BASE_CONFIG = {
                 {
                 "label_num" : 101,
                 #"base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
-                "base_path" : "../two-stream/tomar/data",
+                "base_path" : "../../two-stream/tomar/data",
                 "split" : 3,
                 "label_index_txt" : "classInd.txt",
                 "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
@@ -327,7 +327,7 @@ class StreamTrainer(object):
                     torch.cuda.empty_cache()
                     
                     self.batch += 1
-                    print('epoch', self.epoch, 'phase', self.phase, '| Current batch', str(self.batch), '/', str(self.total_batch), end = '\n')
+                    print('epoch', self.epoch, 'phase', self.phase, '| Current batch', str(self.batch), '/', str(self.total_batch), end = '\r')
                     self.update['progress'] = True
                     
                     # place the input and label into memory of gatherer unit
@@ -436,6 +436,10 @@ class StreamTrainer(object):
                     'scheduler': None if self.scheduler == None else self.scheduler.state_dict()
                     }, 'output/stream/state/'+self.args['output_name']+'.pth.tar')
                     
+            print('Epoch %d | lr %.1E | TrainLoss %.4f | ValLoss %.4f | TrainAcc %.4f | ValAcc %.4f' % 
+                  (self.epoch, lr, performances['train_loss'][self.epoch - 1], performances['val_loss'][self.epoch - 1], 
+                   performances['train_acc'][self.epoch - 1], performances['val_acc'][self.epoch - 1]))
+            
             # one epoch done
             self.update['result'] = True
             
@@ -519,16 +523,17 @@ if __name__ == '__main__':
     j = """{
           "base_lr": 0.01, 
           "batch_size": 32, 
-          "clip_len": 8, 
+          "clip_len": 16, 
           "crop_h": 112, 
           "crop_w": 112, 
           "dataset": "UCF-101", 
           "debug_mode": "peek", 
-          "debug_train_size": 8, 
-          "debug_val_size": 8, 
-          "device": "cuda:0", 
+          "debug_train_size": 32, 
+          "debug_val_size": 32, 
+          "device": "cuda:3", 
           "dropout": 0.0, 
           "epoch": 3, 
+          "freeze_point": "Conv3_x",
           "is_batch_size": false, 
           "is_debug_mode": true, 
           "is_mean_sub": false, 
@@ -541,17 +546,17 @@ if __name__ == '__main__':
           "min_lr": 0.0, 
           "modality": "rgb", 
           "momentum": 0.1, 
-          "network": "r2p1d-18", 
+          "network": "r2p1d-34", 
           "output_compare": [], 
           "output_name": "", 
           "patience": 10, 
-          "pretrain_model": "none", 
+          "pretrain_model": "kinetic-s1m-d34-l32.pth.tar", 
           "resize_h": 128, 
           "resize_w": 171, 
           "split": 1, 
           "step_size": 10, 
-          "sub_batch_size": 3, 
-          "val_batch_size": 8,
+          "sub_batch_size": 20, 
+          "val_batch_size": 20,
           "test_method": "none"
         }"""
     temp = StreamTrainer(loads(j))

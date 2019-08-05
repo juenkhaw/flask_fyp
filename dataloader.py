@@ -46,7 +46,7 @@ BASE_CONFIG = {
                 {
                 "label_num" : 101,
                 #"base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
-                "base_path" : "../two-stream/tomar/data",
+                "base_path" : "../../two-stream/tomar/data",
                 "split" : 3,
                 "label_index_txt" : "classInd.txt",
                 "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
