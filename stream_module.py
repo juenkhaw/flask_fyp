@@ -350,6 +350,7 @@ class StreamTrainer(object):
                         
                         # initialize empty tensor for validation result
                         outputs = torch.tensor([], dtype = torch.float).to(self.device)
+                        outputs2 = torch.tensor([], dtype = torch.float).to(self.device)
                         sb = 0
                         
                         for sb in range(len(sub_inputs)):
@@ -377,7 +378,8 @@ class StreamTrainer(object):
                                 
                             else:
                                 # append the validation result until all subbatches are tested on
-                                outputs = torch.cat((outputs, output['Softmax']))
+                                outputs = torch.cat((outputs, output['Linear']))
+                                outputs2 = torch.cat((outputs2, output['Softmax']))
                                 
                             # this is where actual training ends
                             self.elapsed['train'] += time() - timer['train']
@@ -390,7 +392,7 @@ class StreamTrainer(object):
                         _, preds = torch.max(outputs, 1)
                         current_correct += torch.sum(preds == labels.data)
                         
-                        val_epoch_results = torch.cat((val_epoch_results, outputs))
+                        val_epoch_results = torch.cat((val_epoch_results, outputs2))
             
                     # update parameters
                     if self.phase == 'train':
@@ -531,9 +533,9 @@ if __name__ == '__main__':
           "crop_w": 112, 
           "dataset": "UCF-101", 
           "debug_mode": "peek", 
-          "debug_train_size": 32, 
-          "debug_val_size": 32, 
-          "device": "cuda:3", 
+          "debug_train_size": 8, 
+          "debug_val_size": 8, 
+          "device": "cuda:0", 
           "dropout": 0.0, 
           "epoch": 3, 
           "freeze_point": "Conv3_x",
@@ -558,8 +560,8 @@ if __name__ == '__main__':
           "resize_w": 171, 
           "split": 1, 
           "step_size": 10, 
-          "sub_batch_size": 20, 
-          "val_batch_size": 20,
+          "sub_batch_size": 1, 
+          "val_batch_size": 4,
           "test_method": "none"
         }"""
     temp = StreamTrainer(loads(j))
