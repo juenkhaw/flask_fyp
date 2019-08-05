@@ -9,7 +9,7 @@
 
             function check_init() {
                 $.ajax({
-                        url: '/train_stream',
+                        url: '{{url}}',
                         type: 'POST',
                         contentType: 'application/json',
                         data: JSON.stringify({initialize: true}),
@@ -18,7 +18,7 @@
                             console.log('initializing.html/response '+response)
                             if(response) {
                                 clearInterval(interval);
-                                window.location.replace("{{ url_for('train_stream') }}");
+                                window.location.replace("{{ url }}");
                             }
                         }
                     });

@@ -185,7 +185,7 @@ def cv_confusion_matrix(frame_path, cfm, label, target='pred', sort='none', outp
                 cv2.rectangle(item, 
                               (img_pad * 2 + img_w, 
                                padding + img_pad + bar_pad * 4 + bar_h * 4),
-                              (img_pad * 2 + img_w + int(cfm[target][index, sorted_ind[index]] / max_value * bar_w), 
+                              (img_pad * 2 + img_w + int(true_value[sorted_ind[index]] / max_value * bar_w), 
                                padding + img_pad + bar_pad * 4 + bar_h * (4 + 1)),
                               colors[0], cv2.FILLED)
                 cv2.putText(item, label[sorted_ind[index]], 

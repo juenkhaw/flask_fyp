@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script>
+</script>
+
+<Style>
+	#outer {
+        width: 1050px;
+        background-color: lightgray;
+        margin: auto;
+    }
+
+    .title {
+        text-align: center;
+        font-weight: bold;
+        background: white;
+        border: 1px black solid;
+        padding: 5px;
+    }
+
+    .content {
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-bottom: 10px;
+        text-align: center;
+    }
+</style>
+
+<div id="outer">
+    <p class="title">Progress</p>
+    <div class="content">
+        <table id="progress">
+            <tbody>
+                <tr>
+                    <td>Testing Method</td>
+                    <td><b>nil</b></td>
+                </tr>
+                <tr>
+                    <td>Current Batch</td>
+                    <td><b>0 / 0</b></td>
+                </tr>
+				<tr>
+                    <td>Status</td>
+                    <td id="progress_status">In Progress</td>
+                </tr>
+			</tbody>
+		</table>
+	</div>
+	<p class="title">Package Details</p>
+    <div class="content">
+	</div>
+	<p class="title">Training State</p>
+	<div class="content">
+	</div>
+{% endblock %}

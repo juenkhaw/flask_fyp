@@ -3,7 +3,7 @@
 
 <script>
     $(document).ready(function() {
-        check_update();
+        //check_update();
         interval = setInterval(check_update, 5000);
 
         $("#val_type, #val_sort").change(function() {
@@ -21,12 +21,14 @@
         if(folder === "") {
             folder = "anonymous";
         }
-        $("#val_img").html("<img src='static/stream_val_result/"+folder+"/"+filename+"'>");
+		d = new Date();
+		$("#val_img img").removeAttr("src").attr("src", "static/stream_val_result/"+folder+"/"+filename+"?"+d.getTime());
+        //$("#val_img").html("<img src='static/stream_val_result/"+folder+"/"+filename+"'>");
     }
 
     function check_update() {
         $.ajax({
-                url: '/train_stream',
+                url: '{{url}}',
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({update: true}),
@@ -35,9 +37,7 @@
                     //console.log('initializing.html/response '+response)
                     //console.log(response.no_compare);
                     if(response) {
-                        if(response.no_compare) {
-                            $("#compare_state_text").html("No models are selected for comparison")
-                        }
+                        
                         if(response.progress) {
                             console.log('update progress');
                             $("#progress").html(response.progress_html);
@@ -55,6 +55,9 @@
                                 $("#val_loss").load("{{url_for('static', filename='graph/compare_val_loss.html')}}")
                                 $("#val_acc").load("{{url_for('static', filename='graph/compare_val_acc.html')}}")
                             }
+							if(response.no_compare) {
+								$("#compare_state_text").html("No models are selected for comparison").show();
+							}
                             update_val_img();
                         }
                         if(response.complete) {
@@ -97,6 +100,7 @@
 
     #args {
         height: 150px;
+		width: 50%;
         overflow: auto;
         display: inline-block;
     }
@@ -236,7 +240,7 @@
         </div>
         <p class="default_text">No data available yet</p>
         <div class="graph" id="val_img">
-
+			<img>
         </div>
     </div>
 </div>

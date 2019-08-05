@@ -69,7 +69,7 @@ class StreamTrainer(object):
     args = {}
     model = None
     main_output = None
-    elapsed = None
+    elapsed = {'train':0, 'total':0}
     compare = []
     
     def __init__(self, form_dict):
@@ -346,6 +346,7 @@ class StreamTrainer(object):
                         
                         # initialize empty tensor for validation result
                         outputs = torch.tensor([], dtype = torch.float).to(self.device)
+                        outputs2 = torch.tensor([], dtype = torch.float).to(self.device)
                         sb = 0
                         
                         for sb in range(len(sub_inputs)):
@@ -373,7 +374,8 @@ class StreamTrainer(object):
                                 
                             else:
                                 # append the validation result until all subbatches are tested on
-                                outputs = torch.cat((outputs, output['Softmax']))
+                                outputs = torch.cat((outputs, output['Linear']))
+                                outputs2 = torch.cat((outputs2, output['Softmax']))
                                 
                             # this is where actual training ends
                             self.elapsed['train'] += time() - timer['train']
@@ -386,7 +388,7 @@ class StreamTrainer(object):
                         _, preds = torch.max(outputs, 1)
                         current_correct += torch.sum(preds == labels.data)
                         
-                        val_epoch_results = torch.cat((val_epoch_results, outputs))
+                        val_epoch_results = torch.cat((val_epoch_results, outputs2))
             
                     # update parameters
                     if self.phase == 'train':
