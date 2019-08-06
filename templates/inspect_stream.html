@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script>
+	
+</script>
+
+<style>
+	#outer {
+        width: 1050px;
+        background-color: lightgray;
+        margin: auto;
+    }
+
+    .title {
+        text-align: center;
+        font-weight: bold;
+        background: white;
+        border: 1px black solid;
+        padding: 5px;
+    }
+
+    .content {
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-bottom: 10px;
+        text-align: center;
+    }
+	
+	#args {
+		overflow: auto;
+		height: 200px;
+	}
+	
+	table {
+        border-collapse: collapse;
+        border: 1px black solid;
+		margin: auto;
+		min-width: 100%;
+    }
+	
+	td, th {
+        padding-right: 10px;
+		border: 1px black solid;
+    }
+</style>
+
+<div id="outer">
+	{{output}}
+    <p class="title">Evaluation Result</p>
+    <div class="content">
+	</div>
+	
+	<p class="title">Evaluation Confusion Matrix</p>
+    <div class="content">
+	</div>
+	
+	<p class="title">Training State</p>
+    <div class="content">
+	</div>
+	
+	<p class="title">Validation Result at last Epoch</p>
+    <div class="content">
+	</div>
+	
+	<p class="title">Experiment Settings</p>
+    <div class="content" id="args">
+		<table>
+			<thead>
+				<th>Argument/Model</th>
+				{% for model_name in output.keys() %}
+					<th>{{model_name}}</th>
+				{% endfor %}
+			</thead>
+			<tbody>
+				{% for arg in output[list(output.keys())[0]]['args'].keys() %}
+					<tr>
+						<td>{{arg}}</td>
+					{% for _, pkg in output.items() %}
+						<td>{{pkg['args'][arg]}}</td>
+					{% endfor %}
+					</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+
+{% endblock %}

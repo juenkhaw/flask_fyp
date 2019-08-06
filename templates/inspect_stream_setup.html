@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script>
+</script>
+
+<style>
+    
+    form {
+        width: 1050px;
+        background-color: lightgray;
+        margin: auto;
+        text-align: center;
+    }
+</style>
+
+<form action="" method="POST" novalidate>
+    {{form.hidden_tag()}}
+	<fieldset>
+        <legend>Choose Models</legend>
+		 <p>
+            {{form.main_model.label}}<span style="color:red">*</span><br>
+            {{form.main_model}}<br>
+            {%for error in form.main_model.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+		
+		 <p>
+            {{form.model_compare.label}}<br>
+            {{form.model_compare}}<br>
+            {%for error in form.model_compare.errors%}
+            <span style="color: red;">[{{error}}]</span><br>
+            {%endfor%}
+        </p>
+	</fieldset>
+	<p>{{form.submit}}</p>
+</form>
+
+{% endblock %}

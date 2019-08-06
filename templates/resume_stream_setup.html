@@ -71,7 +71,7 @@
     <fieldset>
         <legend>Setup</legend>
         <p>
-            {{form.half_model.label}}<br>
+            {{form.half_model.label}}<span style="color:red">*</span><br>
             {{form.half_model}} <br>
             {%for error in form.half_model.errors%}
             <span style="color: red;">[{{error}}]</span><br>
@@ -84,11 +84,11 @@
         </div>
         </p>
         <p>
-            {{form.device.label}}<br>
+            {{form.device.label}}<span style="color:red">*</span><br>
             {{form.device}}
         </p>
         <p>
-            {{form.epoch.label}}<br>
+            {{form.epoch.label}}<span style="color:red">*</span><br>
             {{form.epoch(size=10)}}<br>
             {%for error in form.epoch.errors%}
             <span style="color: red;">[{{error}}]</span><br>
@@ -98,7 +98,7 @@
     <fieldset>
         <legend>Training and Validation Batch</legend>
         <p>
-            {{form.sub_batch_size.label}}<br>
+            {{form.sub_batch_size.label}}<span style="color:red">*</span><br>
             {{form.sub_batch_size(size=20, placeholder = 'for each training f/b-prop')}}<br>
 
             {%for error in form.sub_batch_size.errors%}
@@ -106,7 +106,7 @@
             {%endfor%}
         </p>
         <p>
-            {{form.val_batch_size.label}}<br>
+            {{form.val_batch_size.label}}<span style="color:red">*</span><br>
             {{form.val_batch_size(size=20, placeholder = 'for each validation f-prop')}}<br>
 
             {%for error in form.val_batch_size.errors%}

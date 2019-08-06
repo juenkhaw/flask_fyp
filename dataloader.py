@@ -488,6 +488,8 @@ class Videoset(Dataset):
         else:
             if len(glob(path.join(save_path, '*.jpg'))) == self._dataset_info['label_num']: return
         for i in range(self._dataset_info['label_num']):
+            if i == len(self._Y_freq):
+                break
             if self._Y_freq[i] == 0:
                 continue
             else:

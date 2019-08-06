@@ -2,6 +2,58 @@
 {% block content %}
 
 <script>
+	$(document).ready(function() {
+        //check_update();
+        interval = setInterval(check_update, 5000);
+		
+		$("#main_loss").load("{{url_for('static', filename='graph/main_loss.html')}}")
+        $("#main_acc").load("{{url_for('static', filename='graph/main_acc.html')}}")
+		update_val_img();
+		
+        $("#val_type, #val_sort").change(function() {
+            update_val_img();
+        });
+    });
+	
+	function check_update() {
+        $.ajax({
+                url: '/test_stream',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({update: true}),
+                success: function(response) {
+                    // if response is not empty, initialization has done
+                    //console.log('initializing.html/response '+response)
+                    //console.log(response.no_compare);
+                    if(response) {
+                        
+                        if(response.progress) {
+                            console.log('update progress');
+                            $("#progress").html(response.progress_html);
+                        }
+                        
+                        if(response.complete) {
+                            clearInterval(interval);
+                            $("#progress_status").html('<b>Completed</b>');
+                            //redirect to inspect stream if possible
+                        }
+                    }
+                }
+            });
+	}
+	
+	function update_val_img() {
+        var metric = $("#val_type").val();
+        var sort = $("#val_sort").val();
+        var filename = metric + '_' + sort + '.jpg';
+        var folder = "{{st.args['output_name']}}";
+        if(folder === "") {
+            folder = "anonymous";
+        }
+		d = new Date();
+		$("#val_img img").removeAttr("src").attr("src", "static/stream_val_result/"+folder+"/"+filename+"?"+d.getTime());
+        //$("#val_img").html("<img src='static/stream_val_result/"+folder+"/"+filename+"'>");
+    }
 </script>
 
 <Style>
@@ -25,6 +77,51 @@
         padding-bottom: 10px;
         text-align: center;
     }
+	
+	#progress {
+        width:40%;
+        display: inline-block;
+    }
+
+    #args {
+        height: 150px;
+		width: 50%;
+        overflow: auto;
+        display: inline-block;
+    }
+
+    #args table {
+        border-collapse: collapse;
+        border: 1px black solid;
+    }
+
+    #args table td, #args table th {
+        border: 1px black solid;
+        font-size: 14px;
+        padding: 5px;
+    }
+
+    td, th {
+        padding-right: 10px;
+    }
+
+    .graph {
+        margin: auto;
+        display: inline-block;
+    }
+
+    #main_loss, #main_acc {
+        width: 480px;
+        height: 300px;
+    }
+	
+	#val_form {
+        text-align: left;
+    }
+
+    #val_img {
+        margin-left: -10px;
+    }
 </style>
 
 <div id="outer">
@@ -46,11 +143,49 @@
                 </tr>
 			</tbody>
 		</table>
-	</div>
-	<p class="title">Package Details</p>
-    <div class="content">
+		<div class="details" id="args">
+            <table>
+                <thead>
+                    <th>Argument</th>
+                    <th>Parameter</th>
+                </thead>
+            <tbody>
+            {% for k, v in st.args.items() %}
+            <tr>
+                <td>{{k}}</td>
+                <td>{{v}}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+            </table>
+        </div>
 	</div>
 	<p class="title">Training State</p>
+    <div class="content">
+		<div class="graph" id="main_loss">
+            
+        </div>
+        <div class="graph" id="main_acc">
+
+        </div>
+	</div>
+	<p class="title">Validation Performance</p>
 	<div class="content">
+		<div id="val_form">
+            <label for="val_type">Metric</label>&Tab;
+            <select id="val_type" name="val_type">
+                <option value="pred" selected>Averaged Accuracy</option>
+                <option value="score">Averaged Score</option>
+            </select>
+            <label for="val_sort">Sort</label>&Tab;
+            <select id="val_sort" name="val_sort">
+                <option value="none" selected>None</option>
+                <option value="desc">Best to Worst</option>
+                <option value="asc">Worst to Best</option>
+            </select>
+        </div>
+		<div class="graph" id="val_img">
+			<img>
+        </div>
 	</div>
 {% endblock %}

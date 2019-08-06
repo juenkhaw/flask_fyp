@@ -94,7 +94,7 @@
     <fieldset>
         <legend>Setup</legend>
         <p>
-            {{form.full_model.label}}<br>
+            {{form.full_model.label}}<span style="color:red">*</span><br>
             {{form.full_model}} <br>
             {%for error in form.full_model.errors%}
             <span style="color: red;">[{{error}}]</span><br>
@@ -107,25 +107,25 @@
         </div>
         </p>
         <p>
-            {{form.device.label}}<br>
+            {{form.device.label}}<span style="color:red">*</span><br>
             {{form.device}}
         </p>
         <p>
-            {{form.test_method.label}}<br>
+            {{form.test_method.label}}<span style="color:red">*</span><br>
             {{form.test_method}}<br>
         </p>
     </fieldset>
     <fieldset>
         <legend>Testing Batch</legend>
         <p>
-            {{form.clip_len.label}}<br>
+            {{form.clip_len.label}}<span style="color:red">*</span><br>
             {{form.clip_len(size=5)}}<br>
             {%for error in form.clip_len.errors%}
             <span style="color: red;">[{{error}}]</span><br>
             {%endfor%}
         </p>
         <p>
-            {{form.test_batch_size.label}}<br>
+            {{form.test_batch_size.label}}<span style="color:red">*</span><br>
             {{form.test_batch_size(size=20)}}<br>
 
             {%for error in form.test_batch_size.errors%}
@@ -133,7 +133,7 @@
             {%endfor%}
         </p>
         <p>
-            {{form.test_subbatch_size.label}}<br>
+            {{form.test_subbatch_size.label}}<span style="color:red">*</span><br>
             {{form.test_subbatch_size(size=20)}}<br>
 
             {%for error in form.test_subbatch_size.errors%}
@@ -149,11 +149,11 @@
         <fieldset id="debug_option">
             <legend>Test Run on Small Batch</legend>
         <p>
-            {{form.debug_mode.label}}<br>
+            {{form.debug_mode.label}}<span style="color:red">*</span><br>
             {{form.debug_mode}}<br>
         </p>
         <p>
-            {{form.debug_test_size.label}}<br>
+            {{form.debug_test_size.label}}<span style="color:red">*</span><br>
             {{form.debug_test_size(size=20)}}<br>
             {%for error in form.debug_test_size.errors%}
             <span style="color: red;">[{{error}}]</span><br>

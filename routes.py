@@ -14,7 +14,7 @@ from threading import Thread
 from os import listdir, path
 from time import sleep
 
-from .forms import TrainStreamForm, num_range, SelectField, ResumeStreamForm, TestStreamForm
+from .forms import TrainStreamForm, num_range, SelectField, ResumeStreamForm, TestStreamForm, InspectStreamForm
 from decimal import Decimal
 
 from .stream_module import StreamTrainer
@@ -151,6 +151,7 @@ def train_stream():
                             comparing_graph(st.main_output, st.compare, 'val_acc', 'accuracy')
                         
                     if st.update['complete']:
+                        st.update['complete'] = False
                         response['progress_html'] = render_template('train_progress_div.html', st=st)
                         del globals()['st']
                         torch.cuda.empty_cache()
@@ -253,6 +254,7 @@ def resume_stream():
                             comparing_graph(st.main_output, st.compare, 'val_acc', 'accuracy')
                         
                     if st.update['complete']:
+                        st.update['complete'] = False
                         response['progress_html'] = render_template('train_progress_div.html', st=st)
                         del globals()['st']
                         torch.cuda.empty_cache()
@@ -286,8 +288,8 @@ def test_stream():
             
         # if stream trainer is None
         if st == None:
-            base_meta['title'] = 'test_stream/'+st.args['output_name']
-            base_meta['header'] = 'Stream Evaluation - '+st.args['output_name']
+            base_meta['title'] = 'stream/test_stream'
+            base_meta['header'] = 'Stream Evaluation'
             global form
             form = TestStreamForm(device_info['gpu_names'])
             # start the stream training thread
@@ -295,6 +297,10 @@ def test_stream():
                 #Thread(target = (lambda: st.init(form_to_dict(form)))).start()
                 st = StreamTrainer(form_to_dict(form))
                 print('test_stream/form_success')
+                # retrieve training state graph
+                p = torch.load('output/stream/training/'+form.full_model.data, map_location=lambda storage, loc: storage)
+                main_loss_graph(p['epoch'], p['output']['train_loss'], p['output']['val_loss'])
+                main_acc_graph(p['epoch'], p['output']['train_acc'], p['output']['val_acc'])
                 Thread(target = exec_test_stream, args = (st,)).start()
                 #return jsonify(form_to_dict(form))
                 return render_template('initializing.html', url=url_for('test_stream'))
@@ -308,7 +314,7 @@ def test_stream():
             if st.update['init']:
                 base_meta['title'] = 'test_stream/'+st.args['output_name']
                 base_meta['header'] = 'Stream Evaluation - '+st.args['output_name']
-                return render_template('test_net_state.html', base_meta=base_meta, st=st)
+                return render_template('test_stream_state.html', base_meta=base_meta, st=st)
             else:
                 return render_template('initializing.html', url=url_for('test_stream'))
             
@@ -338,9 +344,10 @@ def test_stream():
                     
                     if st.update['progress']: # update progress status
                         st.update['progress'] = False
-                        response['progress_html'] = render_template('train_progress_div.html', st=st)
+                        response['progress_html'] = render_template('test_progress_div.html', st=st)
                         
                     if st.update['complete']:
+                        st.update['complete'] = False
                         del globals()['st']
                         torch.cuda.empty_cache()
                         
@@ -354,6 +361,69 @@ def test_stream():
                 else:
                     return ''
 
-@app.route('/inspect_stream')
+@app.route('/inspect_stream', methods=['GET', 'POST'])
 def inspect_stream():
-    return "INSPECT_STREAM"
+    req = request.json
+    print('inspect_stream/request.json', req)
+    
+    if (req == {} or req == None): # this is not ajax request
+        base_meta['title'] = 'stream/inspect_stream'
+        base_meta['header'] = 'Stream Output Viewer'
+        form = InspectStreamForm()
+        
+        if form.validate_on_submit():
+            print('inspect_stream/form_success')
+            base_meta['title'] = 'inspect_stream/' + form.main_model.data
+            base_meta['header'] = 'Stream Viewer - ' + form.main_model.data
+            
+            # ack models that need to be read
+            if form.main_model.data in form.model_compare.data:
+                form.model_compare.data.remove(form.main_model.data)
+            model_list = [form.main_model.data]
+            model_list.extend(form.model_compare.data)
+            
+            test_method = ['10-clips', '10-crops']
+            
+            output = {model_name.split('.')[0] : {'test_state' : [], 
+                      'test_result' : {method : None for method in test_method}} for model_name in model_list}
+            
+            # read testing state of each pkgs
+            test_dir = listdir('output/stream/testing')
+            for test_file in test_dir:
+                name_test = test_file.split('.')[0].split('_')
+                output[name_test[0]]['test_state'].append(name_test[1])
+            
+            # read package details
+            models = {model_name : torch.load('output/stream/training/'+model_name+'.pth.tar', 
+                        map_location=lambda storage, loc: storage) for model_name in output.keys()}
+        
+            # reading results
+            test_pkg = {model_name.split('.')[0] : torch.load('output/stream/testing/'+model_name, 
+                        map_location=lambda storage, loc: storage) for model_name in test_dir}
+            
+            for name, pkg in test_pkg.items():
+                [model_name, model_method] = name.split('_')
+                for method in test_method:
+                    if method == model_method:
+                        output[model_name]['test_result'][method] = pkg['acc']
+            
+            # argument filters
+            args_filter = ['modality', 'dataset', 'split', 'network', 'pretrain_model', 'freeze_point', 'base_lr', 
+                           'batch_size', 'momentum', 'l2decay', 'dropout', 'lr_scheduler', 'lr_reduce_ratio', 
+                           'step_size', 'last_step', 'patience', 'loss_threshold', 'min_lr', 'clip_len', 
+                           'is_mean_sub', 'is_rand_flip']
+            for name, pkg in models.items():
+                output[name]['args'] = {arg : models[name]['args'][arg] for arg in args_filter}
+                output[name]['args']['epoch'] = pkg['epoch']
+            
+            
+            return render_template('inspect_stream.html', base_meta=base_meta, output=output)
+        else:
+            for fieldName, errorMessages in form.errors.items():
+                for err in errorMessages:
+                    print('inspect_stream/form_failed',fieldName, err)
+        
+        return render_template('inspect_stream_setup.html', base_meta=base_meta, form=form)
+    
+    else:
+        return ''

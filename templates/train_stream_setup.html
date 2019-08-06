@@ -119,27 +119,27 @@
     <fieldset>
         <legend>Setup</legend>
     <p>
-        {{form.modality.label}}<br>
+        {{form.modality.label}}<span style="color:red">*</span><br>
         {{form.modality}}
     </p>
     <p>
-        {{form.dataset.label}}<br>
+        {{form.dataset.label}}<span style="color:red">*</span><br>
         {{form.dataset}}<br>
     </p>
     <p>
-        {{form.split.label}}<br>
+        {{form.split.label}}<span style="color:red">*</span><br>
         {{form.split}}<br>
     </p>
     <p>
-        {{form.network.label}}<br>
+        {{form.network.label}}<span style="color:red">*</span><br>
         {{form.network}}<br>
     </p>
     <p>
-        {{form.device.label}}<br>
+        {{form.device.label}}<span style="color:red">*</span><br>
         {{form.device}}<br>
     </p>
     <p>
-        {{form.epoch.label}}<br>
+        {{form.epoch.label}}<span style="color:red">*</span><br>
         {{form.epoch(size=10)}}<br>
         {%for error in form.epoch.errors%}
         <span style="color: red;">[{{error}}]</span><br>
@@ -163,7 +163,7 @@
     <fieldset>
             <legend>Data Preprocessing</legend>
         <p>
-            {{form.clip_len.label}} (random temporal extraction)<br>
+            {{form.clip_len.label}}<span style="color:red">*</span> (random temporal extraction)<br>
             {{form.clip_len(size=5)}}<br>
             {%for error in form.clip_len.errors%}
             <span style="color: red;">[{{error}}]</span><br>
@@ -175,7 +175,7 @@
         </p>
 
         <p>
-            Resizing Resolution (before random cropping)<br>
+            Resizing Resolution<span style="color:red">*</span> (before random cropping)<br>
             {{form.resize_h(size=10, placeholder="Height")}}&Tab;
             {{form.resize_w(size=10, placeholder="Width")}}<br>
             {%for error in form.resize_h.errors%}
@@ -187,7 +187,7 @@
         </p>
 
         <p>
-            Cropping Resolution<br>
+            Cropping Resolution<span style="color:red">*</span><br>
             {{form.crop_h(size=10, placeholder="Height")}}&Tab;
             {{form.crop_w(size=10, placeholder="Width")}}<br>
             {%for error in form.crop_h.errors%}
@@ -207,7 +207,7 @@
             <legend>Optimizer</legend>
 
     <p>
-        {{form.batch_size.label}}<br>
+        {{form.batch_size.label}}<span style="color:red">*</span><br>
         {{form.batch_size(size=20, placeholder = 'for each params update')}}<br>
         {%for error in form.batch_size.errors%}
         <span style="color: red;">[{{error}}]</span><br>
@@ -220,7 +220,7 @@
     <fieldset id="batch_size_option">
         <legend>Sub-batch Size</legend>
         <p>
-        {{form.sub_batch_size.label}}<br>
+        {{form.sub_batch_size.label}}<span style="color:red">*</span><br>
         {{form.sub_batch_size(size=20, placeholder = 'for each training f/b-prop')}}<br>
 
         {%for error in form.sub_batch_size.errors%}
@@ -228,7 +228,7 @@
         {%endfor%}
         </p>
         <p>
-        {{form.val_batch_size.label}}<br>
+        {{form.val_batch_size.label}}<span style="color:red">*</span><br>
         {{form.val_batch_size(size=20, placeholder = 'for each validation f-prop')}}<br>
     
         {%for error in form.val_batch_size.errors%}
@@ -238,7 +238,7 @@
     </fieldset>
 
     <p>
-        {{form.base_lr.label}}<br>
+        {{form.base_lr.label}}<span style="color:red">*</span><br>
         {{form.base_lr(size=10)}}<br>
         {%for error in form.base_lr.errors%}
         <span style="color: red;">[{{error}}]</span><br>
@@ -253,7 +253,7 @@
     <fieldset id="scheduler_option">
         <legend>LR Scheduler</legend>
         <p>
-        {{form.lr_reduce_ratio.label}}<br>
+        {{form.lr_reduce_ratio.label}}<span style="color:red">*</span><br>
         {{form.lr_reduce_ratio(size=10)}}<br>
         {%for error in form.lr_reduce_ratio.errors%}
         <span style="color: red;">[{{error}}]</span><br>
@@ -261,14 +261,14 @@
         {%endfor%}
         <div id="reduce_by_step_option">
             <p>
-            {{form.step_size.label}}<br>
+            {{form.step_size.label}}<span style="color:red">*</span><br>
             {{form.step_size(size=10)}}<br>
             {%for error in form.step_size.errors%}
             <span style="color: red;">[{{error}}]</span><br>
             {%endfor%}
             </p>
             <p>
-            {{form.last_step.label}}<br>
+            {{form.last_step.label}}<span style="color:red">*</span><br>
             {{form.last_step(size=10)}}<br>
             {%for error in form.last_step.errors%}
             <span style="color: red;">[{{error}}]</span><br>
@@ -277,21 +277,21 @@
         </div>
         <div id="reduce_on_plateau_option">
             <p>
-            {{form.patience.label}}<br>
+            {{form.patience.label}}<span style="color:red">*</span><br>
             {{form.patience(size=10)}}<br>
             {%for error in form.patience.errors%}
             <span style="color: red;">[{{error}}]</span><br>
             {%endfor%}
             </p>
             <p>
-            {{form.loss_threshold.label}}<br>
+            {{form.loss_threshold.label}}<span style="color:red">*</span><br>
             {{form.loss_threshold(size=10)}}<br>
             {%for error in form.loss_threshold.errors%}
             <span style="color: red;">[{{error}}]</span><br>
             {%endfor%}
             </p>
             <p>
-            {{form.min_lr.label}}<br>
+            {{form.min_lr.label}}<span style="color:red">*</span><br>
             {{form.min_lr(size=10)}}<br>
             {%for error in form.min_lr.errors%}
             <span style="color: red;">[{{error}}]</span><br>
@@ -301,7 +301,7 @@
     </fieldset>
 
     <p>
-        {{form.momentum.label}}<br>
+        {{form.momentum.label}}<span style="color:red">*</span><br>
         {{form.momentum(size=10)}}<br>
         {%for error in form.momentum.errors%}
         <span style="color: red;">[{{error}}]</span><br>
@@ -309,7 +309,7 @@
     </p>
 
     <p>
-        {{form.l2decay.label}}<br>
+        {{form.l2decay.label}}<span style="color:red">*</span><br>
         {{form.l2decay(size=10)}}<br>
         {%for error in form.l2decay.errors%}
         <span style="color: red;">[{{error}}]</span><br>
@@ -317,7 +317,7 @@
     </p>
 
     <p>
-        {{form.dropout.label}}<br>
+        {{form.dropout.label}}<span style="color:red">*</span><br>
         {{form.dropout(size=10)}}<br>
         {%for error in form.dropout.errors%}
         <span style="color: red;">[{{error}}]</span><br>
@@ -333,18 +333,18 @@
         <fieldset id="debug_option">
             <legend>Test Run on Small Batch</legend>
         <p>
-            {{form.debug_mode.label}}<br>
+            {{form.debug_mode.label}}<span style="color:red">*</span><br>
             {{form.debug_mode}}<br>
         </p>
         <p>
-            {{form.debug_train_size.label}}<br>
+            {{form.debug_train_size.label}}<span style="color:red">*</span><br>
             {{form.debug_train_size(size=20)}}<br>
             {%for error in form.debug_train_size.errors%}
             <span style="color: red;">[{{error}}]</span><br>
             {%endfor%}
         </p>
         <p>
-            {{form.debug_val_size.label}}<br>
+            {{form.debug_val_size.label}}<span style="color:red">*</span><br>
             {{form.debug_val_size(size=20)}}<br>
             {%for error in form.debug_val_size.errors%}
             <span style="color: red;">[{{error}}]</span><br>

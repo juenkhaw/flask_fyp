@@ -42,6 +42,14 @@ def validate_dataset_path(form, field):
 def validate_empty_select(form, field):
     if field.data == '':
         raise ValidationError('This selection is empty')
+        
+def selection_limit(limit):
+    
+    def _selection_limit(form, field):
+        if len(field.data) > limit:
+            raise ValidationError('Choose NO more than '+str(limit))
+    
+    return _selection_limit
 
 class TrainStreamForm(FlaskForm):
     
@@ -163,13 +171,13 @@ class TestStreamForm(FlaskForm):
     
     # testing batch settings
     clip_len = IntegerField(u'Testing Clip Length', validators=[InputRequired(), num_range(min = 1)])
-    test_batch_size = IntegerField(u'Testing Batch Size (number of samples with 10 clips each)', validators=[InputRequired(), num_range(min = 1)], default = 32)
-    test_subbatch_size = IntegerField(u'Subbatch Size (number of clips per f-prop)', validators=[InputRequired(), num_range(min = 1, max = 320, dependant=[None, '10x of test batch size'])], default = 320)
+    test_batch_size = IntegerField(u'Testing Batch Size (number of samples with 10 clips each)', validators=[InputRequired(), num_range(min = 1)], default = 1)
+    test_subbatch_size = IntegerField(u'Subbatch Size (number of clips per f-prop)', validators=[InputRequired(), num_range(min = 1, max = 320, dependant=[None, '10x of test batch size'])], default = 10)
     
     # debugging mode
     is_debug_mode = BooleanField(u'Enable Debugging Mode')
     debug_mode = SelectField(u'Data Selection Mode', choices = [('peek','Peek (select first N samples regardless of label)'), ('distributed','Distributed (select first N samples across all labels)')], validators=[InputRequired()])
-    debug_test_size = IntegerField(u'Test Set Size', default = 32, validators=[InputRequired()])
+    debug_test_size = IntegerField(u'Test Set Size', default = 8, validators=[InputRequired()])
     
     submit = SubmitField('Start')
     
@@ -184,3 +192,21 @@ class TestStreamForm(FlaskForm):
         self._gpu_names = [('cuda:'+str(i), 'CUDA:'+str(i)+' '+gpu_names[i]) for i in range(len(gpu_names))]
         self._gpu_names.extend([('cpu', 'CPU')])
         self.device.choices = self._gpu_names
+        
+class InspectStreamForm(FlaskForm):
+    
+    # basic setup
+    main_model = SelectField(u'Base Model', validators=[InputRequired(), validate_empty_select])
+    model_compare = SelectMultipleField(u'Models Comparison (limit to 4)', validators=[selection_limit(4)])
+    
+    submit = SubmitField('Inspect')
+    
+    def __init__(self):
+        super(InspectStreamForm, self).__init__()
+        
+        self.main_model.choices = [('', '')]
+        # making sure the state and output files are all both existed for the models
+        state_list = os.listdir('output/stream/training')
+        self.main_model.choices.extend([(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x and x in state_list])
+        
+        self.model_compare.choices = [(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x]

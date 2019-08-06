@@ -252,7 +252,10 @@ class StreamTrainer(object):
         self.main_output = contents
         
         if self.args['output_name'] != '':
-            torch.save(self.main_output, _path+self.args['output_name']+'.pth.tar')
+            if 'testing' in _path:
+                torch.save(self.main_output, _path+self.args['output_name']+'_'+self.args['test_method']+'.pth.tar')
+            else:
+                torch.save(self.main_output, _path+self.args['output_name']+'.pth.tar')
             
     def compute_confusion_matrix(self, result, dataloader):
         """
@@ -447,12 +450,13 @@ class StreamTrainer(object):
         test_correct = {'top-1' : 0, 'top-5' : 0}
         test_acc = {'top-1' : 0, 'top-5' : 0}
         
-        self.batch = 1
+        self.batch = 0
         self.total_batch = int(ceil(len(self.dataloaders.dataset) / self.dataloaders.batch_size))
         
         for inputs, labels in self.dataloaders:
         
             torch.cuda.empty_cache()
+            self.batch += 1
             print('Phase test | Current batch =', str(self.batch), '/', str(self.total_batch), end = '\n')
             self.update['progress'] = True
             
@@ -486,7 +490,7 @@ class StreamTrainer(object):
     
                     output = self.model.forward(sub_inputs[sb])
                     outputs = torch.cat((outputs, output['Softmax']))
-                    
+                                        
             # detach the predicted scores         
             outputs = outputs.cpu().detach().numpy()
                 
