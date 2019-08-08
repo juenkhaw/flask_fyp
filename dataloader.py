@@ -482,7 +482,7 @@ class Videoset(Dataset):
         INTERNAL USE ONLY
         """
         index = 0
-        save_path = path.join('static', self._args['dataset'], self._mode)
+        save_path = path.join('static', self._args['dataset'], 'split'+str(self._args['split']), self._mode)
         if not path.exists(save_path):
             makedirs(save_path)
         else:

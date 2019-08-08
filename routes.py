@@ -12,6 +12,7 @@ import torch
 
 from threading import Thread
 from os import listdir, path
+from glob import glob
 from time import sleep
 
 from .forms import TrainStreamForm, num_range, SelectField, ResumeStreamForm, TestStreamForm, InspectStreamForm
@@ -67,7 +68,7 @@ def exec_train_stream(st):
 @app.route('/train_stream', methods=['GET', 'POST'])
 def train_stream():
     req = request.json
-    #print('train_stream/request.json', req)
+    print('train_stream/request.json', req)
     
     # check if this is ajax post from initializing page
     if (req == {} or req == None): # this is not ajax request
@@ -107,6 +108,14 @@ def train_stream():
                 return render_template('initializing.html', url=url_for('train_stream'))
         
     else: # this is ajax post request, classifying action based on request json
+        
+        if all(k in req.keys() for k in ['dataset', 'split']):
+            read_path = 'output/stream/'+req['dataset']+'/split'+req['split']+'/training'
+            if not path.exists(read_path):
+                form.output_compare.choices = []
+            else:
+                form.output_compare.choices = [(x, x) for x in listdir(read_path) if '.pth.tar' in x]
+            return jsonify({'html': form.output_compare})
         
         if 'dataset' in req.keys(): # updating the split_select choices
             form.split.choices = [(x, x) for x in list(range(1, BASE_CONFIG['dataset'][req['dataset']]['split'] + 1))]
@@ -219,7 +228,7 @@ def resume_stream():
             if req['model'] == '':
                 return jsonify({'html':'<span style="color: red;">No data available</span>'})
             else:
-                p = torch.load('output/stream/training/'+req['model'], map_location=lambda storage, loc: storage)
+                p = torch.load(req['model'], map_location=lambda storage, loc: storage)
                 p_args = p['args']
                 p_training = {x:p['output'][x] for x in ['train_loss', 'val_loss', 'train_acc', 'val_acc']}
                 p_epoch = p['epoch']
@@ -227,7 +236,7 @@ def resume_stream():
                 form.epoch.validators[1] = num_range(min=p_epoch, dependant=['previous epoch', None])
                 form.sub_batch_size.validators[1] = num_range(min = 1, max = p_args['batch_size'], dependant=[None,'batch size'])
                 form.val_batch_size.validators[1] = num_range(min = 1, max = p_args['batch_size'], dependant=[None,'batch size'])
-                form.output_compare.choices = [(x, x) for x in listdir('output/stream/training') if '.pth.tar' in x and x != p_args['output_name']+'.pth.tar']
+                form.output_compare.choices = [x for x in form.half_model.choices if x[0] != req['model'] and x[0] != '']
                 return jsonify({'html':render_template('resume_stream_properties.html', args = p_args, training = p_training, epoch = p_epoch), 
                                 'device':p_args['device'], 'sub':p_args['sub_batch_size'], 
                                 'val':p_args['val_batch_size'], 'name':p_args['output_name'], 
@@ -298,7 +307,7 @@ def test_stream():
                 st = StreamTrainer(form_to_dict(form))
                 print('test_stream/form_success')
                 # retrieve training state graph
-                p = torch.load('output/stream/training/'+form.full_model.data, map_location=lambda storage, loc: storage)
+                p = torch.load(form.full_model.data, map_location=lambda storage, loc: storage)
                 main_loss_graph(p['epoch'], p['output']['train_loss'], p['output']['val_loss'])
                 main_acc_graph(p['epoch'], p['output']['train_acc'], p['output']['val_acc'])
                 Thread(target = exec_test_stream, args = (st,)).start()
@@ -314,7 +323,8 @@ def test_stream():
             if st.update['init']:
                 base_meta['title'] = 'test_stream/'+st.args['output_name']
                 base_meta['header'] = 'Stream Evaluation - '+st.args['output_name']
-                return render_template('test_stream_state.html', base_meta=base_meta, st=st)
+                return render_template('test_stream_state.html', base_meta=base_meta, st=st, 
+                                       no_val=BASE_CONFIG['dataset'][st.args['dataset']]['val_txt'] == [])
             else:
                 return render_template('initializing.html', url=url_for('test_stream'))
             
@@ -323,7 +333,7 @@ def test_stream():
             if req['model'] == '':
                 return jsonify({'html':'<span style="color: red;">No data available</span>'})
             else:
-                p = torch.load('output/stream/training/'+req['model'], map_location=lambda storage, loc: storage)
+                p = torch.load(req['model'], map_location=lambda storage, loc: storage)
                 p_args = p['args']
                 p_training = {x:p['output'][x] for x in ['train_loss', 'val_loss', 'train_acc', 'val_acc']}
                 p_epoch = p['epoch']
@@ -369,6 +379,7 @@ def inspect_stream():
     if (req == {} or req == None): # this is not ajax request
         base_meta['title'] = 'stream/inspect_stream'
         base_meta['header'] = 'Stream Output Viewer'
+        global form
         form = InspectStreamForm()
         
         if form.validate_on_submit():
@@ -379,45 +390,67 @@ def inspect_stream():
             # ack models that need to be read
             if form.main_model.data in form.model_compare.data:
                 form.model_compare.data.remove(form.main_model.data)
-            model_list = [form.main_model.data]
-            model_list.extend(form.model_compare.data)
             
+            # extract basic info on base model
+            temp = form.main_model.data.split('\\')
+            main_model = temp[-1].split('.')[0]
+            base_dataset = temp[2]
+            base_split = temp[3]
+            
+            # appending url of peer pkgs
+            model_url_list = [form.main_model.data]
+            model_url_list.extend(form.model_compare.data)
+            peer_model = [x.split('\\')[-1].split('.')[0] for x in model_url_list]
+                        
             test_method = ['10-clips', '10-crops']
             
-            output = {model_name.split('.')[0] : {'test_state' : [], 
-                      'test_result' : {method : None for method in test_method}} for model_name in model_list}
+            # initialize response
+            output = {model_name : {'test_result' : {method : None for method in test_method}} for model_name in peer_model}
             
+            # read training package details
+            train_pkg = {url.split('\\')[-1].split('.')[0] : torch.load(url, map_location=lambda storage, loc: storage) for url in model_url_list}
+                        
             # read testing state of each pkgs
-            test_dir = listdir('output/stream/testing')
-            for test_file in test_dir:
-                name_test = test_file.split('.')[0].split('_')
-                output[name_test[0]]['test_state'].append(name_test[1])
-            
-            # read package details
-            models = {model_name : torch.load('output/stream/training/'+model_name+'.pth.tar', 
-                        map_location=lambda storage, loc: storage) for model_name in output.keys()}
-        
+            test_url = glob('output\\stream\\'+base_dataset+'\\'+base_split+'\\testing\\*.pth.tar')
+            filtered_test_url = {}
+            for url in test_url:
+                test_pkg_name = '_'.join(url.split('\\')[-1].split('_')[:-1])
+                test_pkg_method = url.split('\\')[-1].split('.')[0].split('_')[-1]
+                if test_pkg_name in peer_model and test_pkg_method in test_method:
+                    filtered_test_url.update({test_pkg_name+'=/='+test_pkg_method : url})
+                    
             # reading results
-            test_pkg = {model_name.split('.')[0] : torch.load('output/stream/testing/'+model_name, 
-                        map_location=lambda storage, loc: storage) for model_name in test_dir}
+            test_pkg = {k : torch.load(url, map_location=lambda storage, loc: storage) for k, url in filtered_test_url.items()}
             
             for name, pkg in test_pkg.items():
-                [model_name, model_method] = name.split('_')
+                model_method = name.split('=/=')[1]
+                model_name = name.split('=/=')[0]
                 for method in test_method:
                     if method == model_method:
+                        for k, v in pkg['acc'].items():
+                            pkg['acc'][k] = round(v * 100, 2)
                         output[model_name]['test_result'][method] = pkg['acc']
+                        
+            # training state
+            main_loss_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_loss'], train_pkg[main_model]['output']['val_loss'], title=main_model)
+            main_acc_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_acc'], train_pkg[main_model]['output']['val_acc'], title=main_model)
+            if len(peer_model) > 1: # if there is any comparison
+                comparing_graph(train_pkg[model_name], [model for k, model in train_pkg.items() if k != model_name], 'train_loss', 'loss')
+                comparing_graph(train_pkg[model_name], [model for k, model in train_pkg.items() if k != model_name], 'val_loss', 'loss')
+                comparing_graph(train_pkg[model_name], [model for k, model in train_pkg.items() if k != model_name], 'train_acc', 'accuracy')
+                comparing_graph(train_pkg[model_name], [model for k, model in train_pkg.items() if k != model_name], 'val_acc', 'accuracy')
             
             # argument filters
             args_filter = ['modality', 'dataset', 'split', 'network', 'pretrain_model', 'freeze_point', 'base_lr', 
                            'batch_size', 'momentum', 'l2decay', 'dropout', 'lr_scheduler', 'lr_reduce_ratio', 
                            'step_size', 'last_step', 'patience', 'loss_threshold', 'min_lr', 'clip_len', 
                            'is_mean_sub', 'is_rand_flip']
-            for name, pkg in models.items():
-                output[name]['args'] = {arg : models[name]['args'][arg] for arg in args_filter}
+            for name, pkg in train_pkg.items():
+                output[name]['args'] = {arg : train_pkg[name]['args'][arg] for arg in args_filter}
                 output[name]['args']['epoch'] = pkg['epoch']
             
             
-            return render_template('inspect_stream.html', base_meta=base_meta, output=output)
+            return render_template('inspect_stream.html', base_meta=base_meta, output=output, base_model=main_model)
         else:
             for fieldName, errorMessages in form.errors.items():
                 for err in errorMessages:
@@ -425,5 +458,12 @@ def inspect_stream():
         
         return render_template('inspect_stream_setup.html', base_meta=base_meta, form=form)
     
-    else:
-        return ''
+    else: # ajax request
+        if 'base_model' in req.keys():
+            base_dataset = req['base_model'].split('\\')[2]
+            base_split = req['base_model'].split('\\')[3]
+            form.model_compare.choices = [(x,x) for x in glob('output\\stream\\'+base_dataset+'\\'+base_split+'\\training\\*.pth.tar', recursive=True)]
+            return jsonify({'html':form.model_compare})
+        
+        else:
+            return ''

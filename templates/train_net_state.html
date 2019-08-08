@@ -2,8 +2,15 @@
 {% block content %}
 
 <script>
+	var val_url = "static/stream_val_result/{{st.args['dataset']}}/split{{st.args['split']}}/"
+
     $(document).ready(function() {
         //check_update();
+		
+		if("{{'val' not in st.dataloaders.keys()}}" === "True") {
+			$("#val_form").parent().html("<p style='color:red; text-align:center'>Validation is not available</p>");
+		} 
+		
         interval = setInterval(check_update, 5000);
 
         $("#val_type, #val_sort").change(function() {
@@ -20,7 +27,7 @@
             folder = "anonymous";
         }
 		d = new Date();
-		$("#val_img img").removeAttr("src").attr("src", "static/stream_val_result/"+folder+"/"+filename+"?"+d.getTime());
+		$("#val_img img").removeAttr("src").attr("src", val_url+folder+"/"+filename+"?"+d.getTime());
         //$("#val_img").html("<img src='static/stream_val_result/"+folder+"/"+filename+"'>");
     }
 

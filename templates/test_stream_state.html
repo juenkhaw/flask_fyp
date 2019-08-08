@@ -2,9 +2,15 @@
 {% block content %}
 
 <script>
+	var val_url = "static/stream_val_result/{{st.args['dataset']}}/split{{st.args['split']}}/"
+	
 	$(document).ready(function() {
         //check_update();
         interval = setInterval(check_update, 5000);
+		
+		if("{{no_val}}" === "True") {
+			$("#val_form").parent().html("<p style='color:red; text-align:center'>Validation is not available</p>");
+		} 
 		
 		$("#main_loss").load("{{url_for('static', filename='graph/main_loss.html')}}")
         $("#main_acc").load("{{url_for('static', filename='graph/main_acc.html')}}")
@@ -51,7 +57,7 @@
             folder = "anonymous";
         }
 		d = new Date();
-		$("#val_img img").removeAttr("src").attr("src", "static/stream_val_result/"+folder+"/"+filename+"?"+d.getTime());
+		$("#val_img img").removeAttr("src").attr("src", val_url+folder+"/"+filename+"?"+d.getTime());
         //$("#val_img").html("<img src='static/stream_val_result/"+folder+"/"+filename+"'>");
     }
 </script>

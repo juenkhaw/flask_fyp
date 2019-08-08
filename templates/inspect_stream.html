@@ -2,7 +2,27 @@
 {% block content %}
 
 <script>
-	
+	$(document).ready(function() {
+		$("#main_loss, #main_acc").html("Updating").show();
+		
+		
+		$("#main_loss").load("{{url_for('static', filename='graph/main_loss.html')}}")
+		$("#main_acc").load("{{url_for('static', filename='graph/main_acc.html')}}")
+		
+		if({{len(output.keys())}} > 1) {
+		
+			$(".default_text").hide();
+			$("#train_loss, #train_acc, #val_loss, #val_acc").html("Updating");
+			$("#train_loss").load("{{url_for('static', filename='graph/compare_train_loss.html')}}")
+			$("#train_acc").load("{{url_for('static', filename='graph/compare_train_acc.html')}}")
+			$("#val_loss").load("{{url_for('static', filename='graph/compare_val_loss.html')}}")
+			$("#val_acc").load("{{url_for('static', filename='graph/compare_val_acc.html')}}")
+			
+		} else {
+			$("#val_sort_model").prop("disabled", true);
+		}
+		
+	});
 </script>
 
 <style>
@@ -43,33 +63,153 @@
         padding-right: 10px;
 		border: 1px black solid;
     }
+	
+	#acc_table td {
+		text-align: center
+	}
+	
+	.graph {
+        margin: auto;
+        display: inline-block;
+    }
+
+    #main_loss, #main_acc {
+        width: 480px;
+        height: 300px;
+    }
+
+    #train_loss, #train_acc, #val_loss, #val_acc {
+        width: 250px;
+        height: 300px;
+    }
+	
+	.default_text {
+        color: red;
+        text-align: center;
+    }
+	
+	#val_form {
+        text-align: left;
+    }
+
+    #val_img {
+        margin-left: -10px;
+    }
 </style>
 
 <div id="outer">
 	{{output}}
     <p class="title">Evaluation Result</p>
     <div class="content">
+	<p style="color:red; text-align:left">* indicates base model</p>
+		<table>
+			<thead>
+				<th>Top-k Prediction / Model</th>
+				{% for model_name in output.keys() %}
+					{% for test_method in output[model_name]['test_result'].keys() %}
+						{% if output[model_name]['test_result'][test_method] != None %}
+							<th>{{model_name}}
+							{% if model_name == base_model %}
+								<span style='color:red'>*</span>
+							{% endif %}
+							<br>{{test_method}}</th>
+						{% endif %}
+					{% endfor %}
+				{% endfor %}
+			</thead>
+			<tbody id="acc_table">
+				<tr>
+					<td>Averaged Top-1</td>
+					{% for model_name in output.keys() %}
+						{% for test_method in output[model_name]['test_result'].keys() %}
+							{% if output[model_name]['test_result'][test_method] != None %}
+								<td>{{output[model_name]['test_result'][test_method]['top-1']}}%</td>
+							{% endif %}
+						{% endfor %}
+					{% endfor %}
+				</tr>
+				<tr>
+					<td>Averaged Top-5</td>
+					{% for model_name in output.keys() %}
+						{% for test_method in output[model_name]['test_result'].keys() %}
+							{% if output[model_name]['test_result'][test_method] != None %}
+								<td>{{output[model_name]['test_result'][test_method]['top-5']}}%</td>
+							{% endif %}
+						{% endfor %}
+					{% endfor %}
+				</tr>
+			</tbody>
+		</table>
 	</div>
 	
-	<p class="title">Evaluation Confusion Matrix</p>
+	<p class="title">Confusion Matrix</p>
     <div class="content">
 	</div>
 	
 	<p class="title">Training State</p>
     <div class="content">
+		<div class="graph" id="main_loss">
+				
+		</div>
+		<div class="graph" id="main_acc">
+
+		</div>
+		<div id="compare_graph">
+			<p class="default_text">No models are selected for comparison</p>
+			<div class="graph" id="train_loss">
+				
+			</div>
+			<div class="graph" id="train_acc">
+
+			</div>
+			<div class="graph" id="val_loss">
+				
+			</div>
+			<div class="graph" id="val_acc">
+
+			</div>
+		</div>
 	</div>
 	
 	<p class="title">Validation Result at last Epoch</p>
     <div class="content">
+		<div id="val_form">
+            <label for="val_type">Metric</label>&Tab;
+            <select id="val_type" name="val_type">
+                <option value="pred" selected>Averaged Accuracy</option>
+                <option value="score">Averaged Score</option>
+            </select>
+            <label for="val_sort">Sort</label>&Tab;
+            <select id="val_sort" name="val_sort">
+                <option value="none" selected>by performance</option>
+                <option value="desc">Best to Worst</option>
+                <option value="asc">Worst to Best</option>
+            </select>&Tab;
+			<select id="val_sort_model" name="val_sort_model">
+				<option value="none" selected>by peers difference</option>
+				{% for model_name in output.keys() %}
+					{% if model_name != base_model %}
+						<option value="model_name">{{model_name}}</option>
+					{% endif %}
+                {% endfor %}
+            </select>&Tab;
+        </div>
+		<div class="graph" id="val_img">
+			<img>
+        </div>
 	</div>
 	
 	<p class="title">Experiment Settings</p>
     <div class="content" id="args">
 		<table>
 			<thead>
-				<th>Argument/Model</th>
+				<th>Argument / Model</th>
 				{% for model_name in output.keys() %}
-					<th>{{model_name}}</th>
+					<th>{{model_name}}
+					{% if model_name == base_model %}
+						<span style='color:red'>*</span>
+					{% endif %}
+					</th>
 				{% endfor %}
 			</thead>
 			<tbody>

@@ -2,6 +2,33 @@
 {% block content %}
 
 <script>
+	$(document).ready(function() {
+		update_compare();
+		$("#{{form.main_model.id}}").change(function() {
+			update_compare();
+		});
+	});
+	
+	function update_compare() {
+		var main_model = $("#{{form.main_model.id}}").val();
+		if(main_model === "") {
+			$("#{{form.model_compare.id}}").prop("disabled", true).val([]);
+			$("#model_info").hide();
+		} else {
+			$("#model_info").show();
+			$("#model_dataset").html(main_model.split("\\")[2]);
+			$("#model_split").html(main_model.split("\\")[3]);
+			$.ajax({
+				url: '/inspect_stream',
+				type: 'POST',
+				contentType: 'application/json',
+				data: JSON.stringify({base_model: main_model}),
+				success: function(response) {
+					$("#{{form.model_compare.id}}").html(response.html).prop("disabled", false);
+				}
+			});
+		}
+	}
 </script>
 
 <style>
@@ -25,6 +52,17 @@
             <span style="color: red;">[{{error}}]</span><br>
             {%endfor%}
         </p>
+		
+		<div id="model_info">
+			<p>
+				<label>Model Dataset</label><br>
+				<b id="model_dataset">nil</b>
+			</p>
+			<p>
+				<label>Dataset Split</label><br>
+				<b id="model_split">nil</b>
+			</p>
+		</div>
 		
 		 <p>
             {{form.model_compare.label}}<br>

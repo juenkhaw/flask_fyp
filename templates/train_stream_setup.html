@@ -72,6 +72,9 @@
         update_subbatch_settings();
         update_debug_option();
         update_form("#{{form.freeze_point.id}}", JSON.stringify({network: $("#{{form.network.id}}").val()}))
+		/*update_form("#{{form.output_compare.id}}", 
+				JSON.stringify({dataset: $("#{{form.dataset.id}}").val(), 
+								split: $("#{{form.split.id}}").val()}));*/
 
         $("#{{form.dataset.id}}").change(function() {
             var opt = $(this).children("option:selected").val();
@@ -104,6 +107,13 @@
         $("#{{form.network.id}}").change(function() {
             update_form("#{{form.freeze_point.id}}", JSON.stringify({network: $(this).val()}))
         });
+		
+		/*
+		$("#{{form.dataset.id}}, #{{form.split.id}}").change(function() {
+			update_form("#{{form.output_compare.id}}", 
+				JSON.stringify({dataset: $("#{{form.dataset.id}}").val(), 
+								split: $("#{{form.split.id}}").val()}));
+		});*/
     })
 </script>
 <style>

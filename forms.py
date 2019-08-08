@@ -12,6 +12,7 @@ from wtforms.validators import InputRequired, regexp
 from . import BASE_CONFIG
 
 import os
+import glob
 
 def num_range(min = None, max = None, dependant = None):
     if dependant == None:
@@ -123,7 +124,8 @@ class TrainStreamForm(FlaskForm):
         self.pretrain_model.choices = [('none', 'None')]
         self.pretrain_model.choices.extend([(x, x) for x in os.listdir('pretrained') if '.pth.tar' in x])
         
-        self.output_compare.choices = [(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x]
+        #self.output_compare.choices = [(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x]
+        self.output_compare.choices = [(x,x) for x in glob.glob(r'output\stream\**\training\*.pth.tar', recursive=True)]
         
         self.freeze_point.choices = [('none', 'None')]
         for net in BASE_CONFIG['network'].keys():
@@ -151,14 +153,14 @@ class ResumeStreamForm(FlaskForm):
         
         self.half_model.choices = [('', '')]
         # making sure the state and output files are all both existed for the models
-        state_list = os.listdir('output/stream/state')
-        self.half_model.choices.extend([(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x and x in state_list])
+        self.half_model.choices.extend([(x, x) for x in glob.glob(r'output\stream\**\training\*.pth.tar', recursive=True)])
         
         self._gpu_names = [('cuda:'+str(i), 'CUDA:'+str(i)+' '+gpu_names[i]) for i in range(len(gpu_names))]
         self._gpu_names.extend([('cpu', 'CPU')])
         self.device.choices = self._gpu_names
                 
-        self.output_compare.choices = [(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x]
+        #self.output_compare.choices = [(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x]
+        self.output_compare.choices = [(x,x) for x in glob.glob(r'output\stream\**\training\*.pth.tar', recursive=True)]
         
 class TestStreamForm(FlaskForm):
     
@@ -186,8 +188,7 @@ class TestStreamForm(FlaskForm):
         
         self.full_model.choices = [('', '')]
         # making sure the state and output files are all both existed for the models
-        state_list = os.listdir('output/stream/state')
-        self.full_model.choices.extend([(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x and x in state_list])
+        self.full_model.choices.extend([(x, x) for x in glob.glob(r'output\stream\**\training\*.pth.tar', recursive=True)])
         
         self._gpu_names = [('cuda:'+str(i), 'CUDA:'+str(i)+' '+gpu_names[i]) for i in range(len(gpu_names))]
         self._gpu_names.extend([('cpu', 'CPU')])
@@ -206,7 +207,6 @@ class InspectStreamForm(FlaskForm):
         
         self.main_model.choices = [('', '')]
         # making sure the state and output files are all both existed for the models
-        state_list = os.listdir('output/stream/training')
-        self.main_model.choices.extend([(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x and x in state_list])
+        self.main_model.choices.extend([(x, x) for x in glob.glob('output\\stream\\**\\training\\*.pth.tar', recursive=True)])
         
-        self.model_compare.choices = [(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x]
+        self.model_compare.choices = self.main_model.choices[1:]

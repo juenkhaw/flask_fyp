@@ -6,58 +6,58 @@ import importlib
 from time import time
 from math import ceil
 import numpy as np
-from os import path
+from os import path, makedirs
 
-from .dataloader import Videoset, generate_subbatches
-from .graph import cv_confusion_matrix
-from . import BASE_CONFIG
-#BASE_CONFIG = {
-#"channel": {
-#        "rgb" : 3,
-#        "flow" : 2
-#},
-#"network":
-#    {
-#        "r2p1d-18":
-#                {
-#                "module":"r2p1d",
-#                "class":"R2P1D18Net"
-#                },
-#        "r2p1d-34":
-#                {
-#                "module":"r2p1d",
-#                "class":"R2P1D34Net"
-#                },
-#        "i3d":
-#                {
-#                "module":"i3d",
-#                "class":"InceptionI3D"
-#                }
-#    },
-#"dataset":
-#    {
-#        "UCF-101":
-#                {
-#                "label_num" : 101,
-#                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
-#                "split" : 3,
-#                "label_index_txt" : "classInd.txt",
-#                "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
-#                "val_txt" : ["ucf_validationlist01.txt", "ucf_validationlist02.txt", "ucf_validationlist03.txt"],
-#                "test_txt" : ["ucf_testlist01.txt", "ucf_testlist02.txt", "ucf_testlist03.txt"]
-#                },
-#        "HMDB-51":
-#                {
-#                "label_num" : 51,
-#                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\HMDB-51",
-#                "split" : 3,
-#                "label_index_txt" : "classInd.txt", 
-#                "train_txt" : ["hmdb_trainlist01.txt", "hmdb_trainlist02.txt", "hmdb_trainlist03.txt"],
-#                "val_txt" : [], 
-#                "test_txt" : ["hmdb_testlist01.txt", "hmdb_testlist02.txt", "hmdb_testlist03.txt"]
-#                }
-#    }
-#}
+from dataloader import Videoset, generate_subbatches
+from graph import cv_confusion_matrix
+#from . import BASE_CONFIG
+BASE_CONFIG = {
+"channel": {
+        "rgb" : 3,
+        "flow" : 2
+},
+"network":
+    {
+        "r2p1d-18":
+                {
+                "module":"r2p1d",
+                "class":"R2P1D18Net"
+                },
+        "r2p1d-34":
+                {
+                "module":"r2p1d",
+                "class":"R2P1D34Net"
+                },
+        "i3d":
+                {
+                "module":"i3d",
+                "class":"InceptionI3D"
+                }
+    },
+"dataset":
+    {
+        "UCF-101":
+                {
+                "label_num" : 101,
+                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
+                "split" : 3,
+                "label_index_txt" : "classInd.txt",
+                "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
+                "val_txt" : ["ucf_validationlist01.txt", "ucf_validationlist02.txt", "ucf_validationlist03.txt"],
+                "test_txt" : ["ucf_testlist01.txt", "ucf_testlist02.txt", "ucf_testlist03.txt"]
+                },
+        "HMDB-51":
+                {
+                "label_num" : 51,
+                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\HMDB-51",
+                "split" : 3,
+                "label  _index_txt" : "classInd.txt", 
+                "train_txt" : ["hmdb_trainlist01.txt", "hmdb_trainlist02.txt", "hmdb_trainlist03.txt"],
+                "val_txt" : [], 
+                "test_txt" : ["hmdb_testlist01.txt", "hmdb_testlist02.txt", "hmdb_testlist03.txt"]
+                }
+    }
+}
 
 class StreamTrainer(object):
 
@@ -112,7 +112,9 @@ class StreamTrainer(object):
         Loads a halfway trained model (including state_dict of optimizer and scheduler)
         """
         print('resume_stream/loading previous model state')
-        state = torch.load('output/stream/state/'+self.args['half_model'], map_location=lambda storage, location: storage.cuda(int(self.args['device'][-1])) if 'cuda' in self.args['device'] else storage)
+        state_url = self.args['half_model'].split('\\')
+        state_url[-2] = 'state'
+        state = torch.load('\\'.join(state_url), map_location=lambda storage, location: storage.cuda(int(self.args['device'][-1])) if 'cuda' in self.args['device'] else storage)
         key_error = self.model.net.load_state_dict(state['model'], strict = False)
         if self.args['freeze_point'] != 'none':
             self.model.freeze(self.args['freeze_point'])
@@ -125,7 +127,9 @@ class StreamTrainer(object):
         Loads a maturely trained model for evaluation
         """
         print('test_stream/loading complete model state')
-        state = torch.load('output/stream/state/'+self.args['full_model'], map_location=lambda storage, location: storage.cuda(int(self.args['device'][-1])) if 'cuda' in self.args['device'] else storage)
+        state_url = self.args['full_model'].split('\\')
+        state_url[-2] = 'state'
+        state = torch.load('\\'.join(state_url), map_location=lambda storage, location: storage.cuda(int(self.args['device'][-1])) if 'cuda' in self.args['device'] else storage)
         key_error = self.model.net.load_state_dict(state['model'], strict = False)
         print('test_stream/WARNING missing/unexpected keys while loading state', key_error)
         del state
@@ -168,7 +172,7 @@ class StreamTrainer(object):
             
     def load_comparing_states(self):
         if len(self.args['output_compare']) != 0:
-            self.compare = [torch.load('output/stream/training/'+x, map_location=lambda storage, loc: storage) for x in self.args['output_compare']]
+            self.compare = [torch.load(x, map_location=lambda storage, loc: storage) for x in self.args['output_compare']]
         
     def setup_training(self):
         
@@ -190,7 +194,7 @@ class StreamTrainer(object):
         
     def setup_resume_training(self):
         # load output file of half-model, combining argument updates from resume form
-        self.main_output = torch.load('output/stream/training/'+self.args['half_model'], 
+        self.main_output = torch.load(self.args['half_model'], 
                 map_location=lambda storage, location: storage.cuda(int(self.args['device'])) if 'cuda' in self.args['device'] else storage)
         self.main_output['args'].update(self.args)
         self.args = self.main_output['args']
@@ -207,9 +211,7 @@ class StreamTrainer(object):
         self.optimizer = optim.SGD(self.model.net.parameters(), lr = self.args['base_lr'], momentum = self.args['momentum'], 
                                    weight_decay = self.args['l2decay'])
         self.optimizer.load_state_dict(state['optimizer'])
-        
-        self.load_comparing_states()
-        
+                
         self.setup_LR_scheduler()
         if self.scheduler != None:
             self.scheduler.load_state_dict(state['optimizer'])
@@ -221,11 +223,13 @@ class StreamTrainer(object):
         print('resume_stream/setup completed for RESUMING TRAINER')
         self.update['init'] = True
         self.update['result'] = True
-        self.save_cfm(self.main_output['output']['val_result'], 'val', self.dataloaders['val'])
+        
+        if 'val' in self.dataloaders.keys():
+            self.save_cfm(self.main_output['output']['val_result'], 'val', self.dataloaders['val'])
     
     def setup_testing(self):
         # load output file of completed model, combining argument updates from resume form
-        self.main_output = torch.load('output/stream/training/'+self.args['full_model'], 
+        self.main_output = torch.load(self.args['full_model'], 
                 map_location=lambda storage, location: storage.cuda(int(self.args['device'])) if 'cuda' in self.args['device'] else storage)
         self.main_output['args'].update(self.args)
         self.args = self.main_output['args']
@@ -242,14 +246,19 @@ class StreamTrainer(object):
         self.update['init'] = True
         
     def save_cfm(self, data, mode, dataloader):
+        read_path = path.join('static',self.args['dataset'],'split'+str(self.args['split']),mode)
+        output_path = path.join('static', 'stream_val_result', self.args['dataset'], 'split'+str(self.args['split']), 'anonymous' if self.args['output_name'] == '' else self.args['output_name'])
         for metric in ['pred', 'score']:
             for sort in ['none', 'asc', 'desc']:
-                cv_confusion_matrix(path.join('static',self.args['dataset'],mode), data, 
+                cv_confusion_matrix(read_path, data, 
                                     dataloader.dataset._label_list, target = metric, sort = sort, 
-                                    output_path = path.join('static','stream_'+mode+'_result','anonymous' if self.args['output_name'] == '' else self.args['output_name']))
+                                    output_path = output_path)
     
     def save_main_output(self, _path, **contents):
         self.main_output = contents
+        
+        if not path.exists(_path):
+            makedirs(_path)
         
         if self.args['output_name'] != '':
             if 'testing' in _path:
@@ -432,13 +441,19 @@ class StreamTrainer(object):
             self.elapsed['total'] += time() - timer['total']
             print('train_stream/currently completed epoch', self.epoch)
             
+            save_path = 'output/stream/'+self.args['dataset']+'/split'+str(self.args['split'])+'/'
+            
             # save all outputs
-            self.save_main_output('output/stream/training/', args = self.args, epoch = self.epoch,
+            self.save_main_output(save_path+'training/', args = self.args, epoch = self.epoch,
                                   output = performances, elapsed = self.elapsed)
+            
+            if not path.exists(save_path+'state/'):
+                makedirs(save_path+'state/')
+            
             torch.save({
                     'model':self.model.net.state_dict(), 'optimizer':self.optimizer.state_dict(), 
                     'scheduler': None if self.scheduler == None else self.scheduler.state_dict()
-                    }, 'output/stream/state/'+self.args['output_name']+'.pth.tar')
+                    }, save_path+'state/'+self.args['output_name']+'.pth.tar')
                     
             # one epoch done
             self.update['result'] = True
@@ -446,7 +461,7 @@ class StreamTrainer(object):
     def test_net(self):
         print('stream/initiate TESTING')
         
-        all_scores = []
+        all_scores = np.zeros((len(self.dataloaders.dataset._Y_freq), len(self.dataloaders.dataset._label_list)))
         test_correct = {'top-1' : 0, 'top-5' : 0}
         test_acc = {'top-1' : 0, 'top-5' : 0}
         
@@ -498,13 +513,16 @@ class StreamTrainer(object):
             averaged_score = np.average(np.array(np.split(outputs, batch_size)), axis = 1)
             
             # concet into all scores
-            if all_scores == []:
-                all_scores = averaged_score
-            else:
-                all_scores = np.concatenate((all_scores, averaged_score), axis = 0)
+#            if all_scores == []:
+#                all_scores = averaged_score
+#            else:
+#                all_scores = np.concatenate((all_scores, averaged_score), axis = 0)
             
             # retrieve the label index with the top-5 scores
             top_k_indices = np.argsort(averaged_score, axis = 1)[:, ::-1][:, :5]
+            
+            for i, label in enumerate(labels):
+                all_scores[label, top_k_indices[i, 0]] += 1
             
             # compute number of matches between predicted labels and true labels
             test_correct['top-1'] += np.sum(top_k_indices[:, 0] == np.array(labels).ravel())
@@ -514,26 +532,25 @@ class StreamTrainer(object):
         test_acc['top-1'] = float(test_correct['top-1']) / len(self.dataloaders.dataset)
         test_acc['top-5'] = float(test_correct['top-5']) / len(self.dataloaders.dataset)
         
-        self.save_main_output('output/stream/testing/', args = self.args, acc = test_acc, pred = all_scores, 
-                              result = self.compute_confusion_matrix(outputs, self.dataloaders))
+        save_path = 'output/stream/'+self.args['dataset']+'/split'+str(self.args['split'])+'/'
+        
+        self.save_main_output(save_path+'testing/', args = self.args, acc = test_acc, pred = all_scores, 
+                              result = self.compute_confusion_matrix(all_scores, self.dataloaders))
         
         self.update['result'] = True
         
 if __name__ == '__main__':
     from json import loads
-    j = """{
+    j = r"""{
       "device": "cuda:0", 
-      "epoch": 3, 
-      "half_model": "test.pth.tar", 
-      "output_compare": [
-        "flow_pretrain_conv3.pth.tar", 
-        "flow_pretrain_nofreeze.pth.tar", 
-        "rgb_pretrain_conv2.pth.tar"
-      ], 
-      "output_name": "test", 
-      "sub_batch_size": 3, 
-      "val_batch_size": 8
+      "full_model": "output\\stream\\UCF-101\\split1\\training\\test.pth.tar", 
+      "test_method": "10-clips",
+      "test_batch_size": 1,
+      "test_subbatch_size": 10,
+      "is_debug_mode": true,
+      "debug_mode": "distributed",
+      "debug_test_size": 2
     }"""
     temp = StreamTrainer(loads(j))
-    temp.setup_resume_training()
-    #temp.test_net()
+    temp.setup_testing()
+    temp.test_net()
