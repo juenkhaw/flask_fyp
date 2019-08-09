@@ -386,7 +386,7 @@ def inspect_stream():
             print('inspect_stream/form_success')
             base_meta['title'] = 'inspect_stream/' + form.main_model.data
             base_meta['header'] = 'Stream Viewer - ' + form.main_model.data
-            
+                        
             # ack models that need to be read
             if form.main_model.data in form.model_compare.data:
                 form.model_compare.data.remove(form.main_model.data)
@@ -407,6 +407,11 @@ def inspect_stream():
             # initialize response
             output = {model_name : {'test_result' : {method : None for method in test_method}} for model_name in peer_model}
             
+            # read in list of class label
+            f_in = open(path.join(BASE_CONFIG['dataset'][base_dataset]['base_path'], BASE_CONFIG['dataset'][base_dataset]['label_index_txt']))
+            label_list = [x.split(' ')[1] for x in (f_in.read().split('\n'))[:-1]]
+            f_in.close()
+            
             # read training package details
             train_pkg = {url.split('\\')[-1].split('.')[0] : torch.load(url, map_location=lambda storage, loc: storage) for url in model_url_list}
                         
@@ -421,6 +426,8 @@ def inspect_stream():
                     
             # reading results
             test_pkg = {k : torch.load(url, map_location=lambda storage, loc: storage) for k, url in filtered_test_url.items()}
+            best_test_pkg = {}
+            best_acc = {k : 0 for k in train_pkg.keys()}
             
             for name, pkg in test_pkg.items():
                 model_method = name.split('=/=')[1]
@@ -430,16 +437,59 @@ def inspect_stream():
                         for k, v in pkg['acc'].items():
                             pkg['acc'][k] = round(v * 100, 2)
                         output[model_name]['test_result'][method] = pkg['acc']
+                        if pkg['acc']['top-1'] > best_acc[model_name]:
+                            best_test_pkg[model_name] = pkg
+                            best_acc[model_name] = pkg['acc']['top-1']
+            
+            Thread(target=plotly_confusion_matrix, args=(best_test_pkg[main_model]['cfm'], label_list, main_model)).start()
                         
             # training state
             main_loss_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_loss'], train_pkg[main_model]['output']['val_loss'], title=main_model)
             main_acc_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_acc'], train_pkg[main_model]['output']['val_acc'], title=main_model)
             if len(peer_model) > 1: # if there is any comparison
-                comparing_graph(train_pkg[model_name], [model for k, model in train_pkg.items() if k != model_name], 'train_loss', 'loss')
-                comparing_graph(train_pkg[model_name], [model for k, model in train_pkg.items() if k != model_name], 'val_loss', 'loss')
-                comparing_graph(train_pkg[model_name], [model for k, model in train_pkg.items() if k != model_name], 'train_acc', 'accuracy')
-                comparing_graph(train_pkg[model_name], [model for k, model in train_pkg.items() if k != model_name], 'val_acc', 'accuracy')
+                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_loss', 'loss')
+                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'val_loss', 'loss')
+                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_acc', 'accuracy')
+                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'val_acc', 'accuracy')
             
+            
+            # validation plot
+            for metric in ['pred', 'score']:
+                for val_sort in ['desc', 'asc', 'none']:
+                    cv_confusion_matrix('static/'+base_dataset+'/'+base_split+'/val/', train_pkg[main_model]['output']['val_result'],
+                                        label_list, target=metric, 
+                                        sort=val_sort, output_path='static/inspect/'+main_model+'/val')
+                    cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/val/', 
+                                                           train_pkg[main_model]['output']['val_result'], 
+                                                           [train_pkg[x]['output']['val_result'] for x in peer_model[1:]], 
+                                                           label_list, '*'+main_model, peer_model[1:], 
+                                                           target=metric, sort=val_sort, by_peer='none', 
+                                                           output_path='static/inspect/'+main_model+'/val')
+                    if main_model in best_test_pkg.keys():
+                        cv_confusion_matrix('static/'+base_dataset+'/'+base_split+'/test/', best_test_pkg[main_model]['result'],
+                                            label_list, target=metric, 
+                                            sort=val_sort, output_path='static/inspect/'+main_model+'/test')
+                        cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/test/', 
+                                                           best_test_pkg[main_model]['result'], 
+                                                           [best_test_pkg[x]['result'] for x in peer_model[1:]], 
+                                                           label_list, '*'+main_model, peer_model[1:], 
+                                                           target=metric, sort=val_sort, by_peer='none', 
+                                                           output_path='static/inspect/'+main_model+'/test')
+                    for sort_model in peer_model:
+                        if sort_model != main_model:
+                            cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/val/', 
+                                                           train_pkg[main_model]['output']['val_result'], 
+                                                           [train_pkg[x]['output']['val_result'] for x in peer_model[1:]], 
+                                                           label_list, main_model, peer_model[1:], 
+                                                           target=metric, sort=val_sort, by_peer=sort_model, 
+                                                           output_path='static/inspect/'+main_model+'/val')
+                            if main_model in best_test_pkg.keys():
+                                cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/val/', 
+                                                           best_test_pkg[main_model]['result'], 
+                                                           [best_test_pkg[x]['result'] for x in peer_model[1:]], 
+                                                           label_list, main_model, peer_model[1:], 
+                                                           target=metric, sort=val_sort, by_peer=sort_model, 
+                                                           output_path='static/inspect/'+main_model+'/test')
             # argument filters
             args_filter = ['modality', 'dataset', 'split', 'network', 'pretrain_model', 'freeze_point', 'base_lr', 
                            'batch_size', 'momentum', 'l2decay', 'dropout', 'lr_scheduler', 'lr_reduce_ratio', 
@@ -450,7 +500,7 @@ def inspect_stream():
                 output[name]['args']['epoch'] = pkg['epoch']
             
             
-            return render_template('inspect_stream.html', base_meta=base_meta, output=output, base_model=main_model)
+            return render_template('inspect_stream.html', base_meta=base_meta, output=output, base_model=main_model, dataset=base_dataset, split=base_split)
         else:
             for fieldName, errorMessages in form.errors.items():
                 for err in errorMessages:

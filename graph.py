@@ -209,18 +209,18 @@ def cv_confusion_matrix(frame_path, cfm, label, target='pred', sort='none', outp
                 
             np.copyto(output[y : y + item_h, x : x + item_w, :], item)
     
-    #if not path.exists(output_path):
-    #    makedirs(output_path)
+    if not path.exists(output_path):
+        makedirs(output_path)
         
-    #cv2.imwrite(path.join(output_path, target + '_' + sort + '.jpg'), output)
-    cv2.imwrite('output.jpg', output)
+    cv2.imwrite(path.join(output_path, target + '_' + sort + '.jpg'), output)
+    #cv2.imwrite('output.jpg', output)
     #cv2.waitKey()
     #cv2.destroyAllWindows()
     
 peer_colors = [(3, 186, 252), (120, 248, 255), (186, 252, 3), (242, 131, 229)]
     
 def cv_confusion_matrix_with_peers(frame_path, cfm, peer_cfm, label, base_name, peer_names, 
-                                   target='pred', sort='none', by_peer='none'):
+                                   target='pred', sort='none', by_peer='none', output_path = ''):
     
     sample_frames = np.array(glob(path.join(frame_path, '*.jpg')))
     ncol = 4
@@ -325,7 +325,7 @@ def cv_confusion_matrix_with_peers(frame_path, cfm, peer_cfm, label, base_name, 
                           (img_pad * 2 + img_w + int(true_value[sorted_ind[index]] / max_value * bar_w), 
                            padding + img_pad + bar_h),
                           colors[1 if sorted_ind[index] == top_label[index, 0] else 2 if sorted_ind[index] not in top_label[index] else 0], cv2.FILLED)
-            cv2.putText(item, (base_name if len(base_name) <= 15 else base_name[:15]) + '*', 
+            cv2.putText(item, (base_name if len(base_name) <= 15 else base_name[:15]), 
                         (img_pad * 2 + img_w, 
                          padding * 2 + img_pad), 
                          cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
@@ -361,7 +361,7 @@ def cv_confusion_matrix_with_peers(frame_path, cfm, peer_cfm, label, base_name, 
                                       (img_pad * 2 + img_w + half_bar, 
                                        padding + img_pad + bar_pad * c + bar_h * (c + 1)),
                                       colors[1 if sorted_ind[index] == peer_top_label[b][sorted_ind[index], 0] else 2 if sorted_ind[index] not in peer_top_label[b][sorted_ind[index]] else 0], cv2.FILLED)
-                    cv2.putText(item, peer_names[b], 
+                    cv2.putText(item, ('*' if peer_names[b] == by_peer else '') + (peer_names[b] if len(peer_names[b]) <= 15 else peer_names[b][:15]), 
                                 (img_pad * 2 + img_w, 
                                  padding * 2 + img_pad + bar_pad * c + bar_h * c), 
                                  cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
@@ -377,13 +377,16 @@ def cv_confusion_matrix_with_peers(frame_path, cfm, peer_cfm, label, base_name, 
             
             np.copyto(output[y : y + item_h, x : x + item_w, :], item)
             
-    cv2.imwrite('output.jpg', output)
+    if not path.exists(output_path):
+        makedirs(output_path)
+        
+    cv2.imwrite(path.join(output_path, target + '_' + sort + '_' + by_peer + '.jpg'), output)
     
 def plotly_confusion_matrix(cfm, label, title):
-    cfm = cfm[:5, :5]
-    cfm2 = cfm
+    print('inspect_stream/PREPARING CFM')
+    cfm2 = np.copy(cfm)
     for i in range(cfm2.shape[0]):
-        cfm2[i, i] = 0
+        cfm2[i, i] = -1
     data = [go.Heatmap(
             colorscale = 'Reds',
             x = label[:cfm.shape[1]],
@@ -407,5 +410,7 @@ def plotly_confusion_matrix(cfm, label, title):
             }
     fig = go.Figure(data=data, layout=layout)
     #fig.write_image('C:/Users/Juen/Desktop/Gabumon/Blackhole/UTAR/Subjects/FYP/flask_fyp/output.png')
-    py.plot(fig, filename='C:/Users/Juen/Desktop/Gabumon/Blackhole/UTAR/Subjects/FYP/flask_fyp/output.html', config=config, auto_open=False)
+    print('inspect_stream/EXPORTING CFM')
+    py.plot(fig, filename='static/inspect/'+title+'/cfm.html', config=config, auto_open=False)
+    print('inspect_stream/CFM DONE')
     

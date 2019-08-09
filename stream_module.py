@@ -145,7 +145,6 @@ class StreamTrainer(object):
         train_dataloader = DataLoader(Videoset(self.args, 'train'), batch_size=self.args['batch_size'], shuffle=True)
         if BASE_CONFIG['dataset'][self.args['dataset']]['val_txt'] != []:
             val_dataloader = DataLoader(Videoset(self.args, 'val'), batch_size=self.args['val_batch_size'], shuffle=False)
-            val_dataloader.dataset._read_first_frame_forach_label()
             self.dataloaders = {'train': train_dataloader, 'val': val_dataloader}
         else:
             self.dataloaders = {'train': train_dataloader}
@@ -157,7 +156,6 @@ class StreamTrainer(object):
         """
         print('train_stream/preparing dataloaders')
         self.dataloaders = DataLoader(Videoset(self.args, 'test'), batch_size=self.args['test_batch_size'], shuffle=False)
-        self.dataloaders.dataset._read_first_frame_forach_label()
         
     def setup_LR_scheduler(self):
         # define LR scheduler

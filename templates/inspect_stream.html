@@ -5,7 +5,6 @@
 	$(document).ready(function() {
 		$("#main_loss, #main_acc").html("Updating").show();
 		
-		
 		$("#main_loss").load("{{url_for('static', filename='graph/main_loss.html')}}")
 		$("#main_acc").load("{{url_for('static', filename='graph/main_acc.html')}}")
 		
@@ -22,7 +21,68 @@
 			$("#val_sort_model").prop("disabled", true);
 		}
 		
+		update_model_sort("val");
+		update_fig("val");
+		update_model_sort("test");
+		update_fig("test");
+		
+		$("#val_submit").click(function() {
+			update_fig("val");	
+		});
+		
+		$("#test_submit").click(function() {
+			update_fig("test");	
+		});
+		
+		$("#val_display").change(function() {
+			update_model_sort("val");
+		});
+		
+		$("#test_display").change(function() {
+			update_model_sort("test");
+		});
+		
+		$("#cfm_chart").click(function() {
+			if(confirm("This might take a while, continue?")) {
+				$.ajax({
+					url: 'static/inspect/{{base_model}}/cfm.html',
+					type: 'HEAD',
+					success: function() {
+						var open =  window.open('static/inspect/{{base_model}}/cfm.html', '_blank');
+						if(open) {
+							open.focus();
+						}
+					}, 
+					error: function() {
+						alert("Chart is not ready yet.");
+					}
+				});
+			} 
+		});
 	});
+	
+	function update_model_sort(mode) {
+		if($("#"+mode+"_display").val() === "base") {
+			$("#"+mode+"_sort_model").prop("disabled", true);
+		}
+		else {
+			$("#"+mode+"_sort_model").prop("disabled", false);
+		}
+	}
+	
+	function update_fig(mode) {
+		var display = $("#"+mode+"_display").val();
+		var metric = $("#"+mode+"_type").val();
+		var sort = $("#"+mode+"_sort").val();
+		var sort_model = $("#"+mode+"_sort_model").val();
+		
+		if(display === "base") {
+			$("#"+mode+"_img img").attr("src", "static/inspect/{{base_model}}/"+mode+"/"+metric+"_"+sort+".jpg")
+		} else {
+			$("#"+mode+"_img img").attr("src", "static/inspect/{{base_model}}/"+mode+"/"+metric+"_"+sort+"_"+sort_model+".jpg")
+		}
+	}
+
 </script>
 
 <style>
@@ -87,18 +147,15 @@
         color: red;
         text-align: center;
     }
-	
-	#val_form {
-        text-align: left;
-    }
 
-    #val_img {
+    #val_img, #test_img {
         margin-left: -10px;
+		max-height: 700px;
+		overflow: auto;
     }
 </style>
 
 <div id="outer">
-	{{output}}
     <p class="title">Evaluation Result</p>
     <div class="content">
 	<p style="color:red; text-align:left">* indicates base model</p>
@@ -144,6 +201,37 @@
 	
 	<p class="title">Confusion Matrix</p>
     <div class="content">
+		<button id="cfm_chart">View Full Confusion Matrix Chart</button>
+		<div id="test_form">
+			<label for="test_display">Display</label>&Tab;
+            <select id="test_display" name="test_display">
+                <option value="base" selected>Base Performance Only</option>
+                <option value="diff">Performance Differences with Peers</option>
+            </select>
+            <label for="test_type">Metric</label>&Tab;
+            <select id="test_type" name="test_type">
+                <option value="pred" selected>Averaged Accuracy</option>
+                <option value="score">Averaged Score</option>
+            </select>
+            <label for="test_sort">Sort</label>&Tab;
+            <select id="test_sort" name="test_sort">
+                <option value="none" selected>by performance</option>
+                <option value="desc">Best to Worst</option>
+                <option value="asc">Worst to Best</option>
+            </select>&Tab;
+			<select id="test_sort_model" name="test_sort_model">
+				<option value="none" selected>by peers difference</option>
+				{% for model_name in output.keys() %}
+					{% if model_name != base_model %}
+						<option testue="{{model_name}}">{{model_name}}</option>
+					{% endif %}
+                {% endfor %}
+            </select>&Tab;
+			<button id="test_submit">Update</button>
+        </div>
+		<div class="graph" id="test_img">
+			<img>
+        </div>
 	</div>
 	
 	<p class="title">Training State</p>
@@ -174,6 +262,11 @@
 	<p class="title">Validation Result at last Epoch</p>
     <div class="content">
 		<div id="val_form">
+			<label for="val_display">Display</label>&Tab;
+            <select id="val_display" name="val_display">
+                <option value="base" selected>Base Performance Only</option>
+                <option value="diff">Performance Differences with Peers</option>
+            </select>
             <label for="val_type">Metric</label>&Tab;
             <select id="val_type" name="val_type">
                 <option value="pred" selected>Averaged Accuracy</option>
@@ -189,10 +282,11 @@
 				<option value="none" selected>by peers difference</option>
 				{% for model_name in output.keys() %}
 					{% if model_name != base_model %}
-						<option value="model_name">{{model_name}}</option>
+						<option value="{{model_name}}">{{model_name}}</option>
 					{% endif %}
                 {% endfor %}
             </select>&Tab;
+			<button id="val_submit">Update</button>
         </div>
 		<div class="graph" id="val_img">
 			<img>

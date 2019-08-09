@@ -363,6 +363,8 @@ class Videoset(Dataset):
             
         # count on occurence of each label
         self._Y_freq = np.bincount(self._Y)
+        
+        self._read_first_frame_forach_label()
             
     def __getitem__(self, index):
         
