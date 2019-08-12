@@ -395,12 +395,16 @@ class Videoset(Dataset):
                 t_index = temporal_uniform_crop(frame_count, self._args['clip_len'], 10)
                 s_index = spatial_center_crop((self._args['resize_h'], self._args['resize_w']), 
                                               (self._args['crop_h'], self._args['crop_w']))
-            else: # 10-crops
+            elif self._args['test_method'] == '10-crops': # 10-crops
                 t_index.append(temporal_center_crop(frame_count, self._args['clip_len']))
                 s_index = spatial_10_crop((self._args['resize_h'], self._args['resize_w']), 
                                               (self._args['crop_h'], self._args['crop_w']))
+            else:
+                t_index.append(temporal_center_crop(frame_count, self._args['clip_len']))
+                s_index = spatial_center_crop((self._args['resize_h'], self._args['resize_w']), 
+                                       (self._args['crop_h'], self._args['crop_w']))
             
-        clip_count = 10 if self._mode == 'test' else 1
+        clip_count = 10 if self._mode == 'test' and self._args['test_method'] != 'none' else 1
         channel_count = 3 if self._args['modality'] == 'rgb' else 2
         buffer = np.empty((clip_count, self._args['clip_len'], self._args['crop_h'], 
                            self._args['crop_w'], channel_count), np.float32)
@@ -426,34 +430,44 @@ class Videoset(Dataset):
                 for i in range(len(buffer_frame)):
                     if buffer_frame[i] is not None:
                         
-                        # applying resizing
-                        buffer_frame[i] = cv2.resize(buffer_frame[i], (self._args['resize_w'], self._args['resize_h']))
-                        
-                        # add channel dimension for flow maps
-                        if channel_count == 2:
-                            buffer_frame[i] = buffer_frame[i][:, :, np.newaxis]
-                        
-                        if self._args['test_method'] == '10-crops':
-                            for s in range(len(s_index)):
-                                buffer_frame2 = buffer_frame[i][s_index[s][0][0] : s_index[s][0][1], 
-                                             s_index[s][1][0] : s_index[s][1][1], :]
-                                if channel_count == 3:
-                                    np.copyto(buffer[s, frame - t_index[t][0], :, :, :], buffer_frame2)
-                                    np.copyto(buffer[s+5, frame - t_index[t][0], :, :, :], np.flip(buffer_frame2, axis = 1))
-                                else:
-                                    np.copyto(buffer[s, (frame - t_index[t][0]), :, :, i], buffer_frame2[:, :, 0])
-                                    np.copyto(buffer[s+5, (frame - t_index[t][0]), :, :, i], np.flip(buffer_frame2[:, :, 0], axis = 1))
-                        
-                        else: # other besides 10-crop testing
-                            # applying random cropping for training and center cropping for validation/10-clips testing
-                            buffer_frame[i] = buffer_frame[i][s_index[0][0] : s_index[0][1], 
-                                     s_index[1][0] : s_index[1][1], :]
+                        if self._args['test_method'] == 'none' and self._mode == 'test':
+                            buffer_frame[i] = cv2.resize(buffer_frame[i], (self._args['crop_w'], self._args['crop_w']))
                             
                             # copying to the buffer tensor
                             if channel_count == 3:
                                 np.copyto(buffer[t, frame - t_index[t][0], :, :, :], buffer_frame[i])
                             else:
-                                np.copyto(buffer[t, (frame - t_index[t][0]), :, :, i], buffer_frame[i][:, :, 0])
+                                np.copyto(buffer[t, (frame - t_index[t][0]), :, :, i], buffer_frame[i][:, :])
+                            
+                        else:
+                            # applying resizing
+                            buffer_frame[i] = cv2.resize(buffer_frame[i], (self._args['resize_w'], self._args['resize_h']))
+                            
+                            # add channel dimension for flow maps
+                            if channel_count == 2:
+                                buffer_frame[i] = buffer_frame[i][:, :, np.newaxis]
+                            
+                            if self._args['test_method'] == '10-crops':
+                                for s in range(len(s_index)):
+                                    buffer_frame2 = buffer_frame[i][s_index[s][0][0] : s_index[s][0][1], 
+                                                 s_index[s][1][0] : s_index[s][1][1], :]
+                                    if channel_count == 3:
+                                        np.copyto(buffer[s, frame - t_index[t][0], :, :, :], buffer_frame2)
+                                        np.copyto(buffer[s+5, frame - t_index[t][0], :, :, :], np.flip(buffer_frame2, axis = 1))
+                                    else:
+                                        np.copyto(buffer[s, (frame - t_index[t][0]), :, :, i], buffer_frame2[:, :, 0])
+                                        np.copyto(buffer[s+5, (frame - t_index[t][0]), :, :, i], np.flip(buffer_frame2[:, :, 0], axis = 1))
+                            
+                            else: # other besides 10-crop testing
+                                # applying random cropping for training and center cropping for validation/10-clips testing
+                                buffer_frame[i] = buffer_frame[i][s_index[0][0] : s_index[0][1], 
+                                         s_index[1][0] : s_index[1][1], :]
+                                
+                                # copying to the buffer tensor
+                                if channel_count == 3:
+                                    np.copyto(buffer[t, frame - t_index[t][0], :, :, :], buffer_frame[i])
+                                else:
+                                    np.copyto(buffer[t, (frame - t_index[t][0]), :, :, i], buffer_frame[i][:, :, 0])
                             
                     else:
                         print(path_content[i][frame2])
