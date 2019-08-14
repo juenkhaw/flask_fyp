@@ -7,7 +7,7 @@ Created on Sat Jan 26 21:56:29 2019
 import torch	
 import torch.nn as nn	
 
-from module import Conv3D, MaxPool3DSame, TemplateNetwork
+from network.module import Conv3D, MaxPool3DSame, TemplateNetwork
 
 class InceptionModule(nn.Module):	
 
@@ -17,13 +17,13 @@ class InceptionModule(nn.Module):
 
         super(InceptionModule, self).__init__()	
         
-        self.branch0 = Conv3D(in_planes, out_planes[0], kernel_size = (1, 1, 1), name = '/branch0_Conv3D(1)')	
-        self.branch1a = Conv3D(in_planes, out_planes[1], kernel_size = (1, 1, 1), name = '/branch1a_Conv3D(1)')	
-        self.branch1b = Conv3D(out_planes[1], out_planes[2], kernel_size = (3, 3, 3), name = '/branch1b_Conv3D(3)')	
-        self.branch2a = Conv3D(in_planes, out_planes[3], kernel_size = (1, 1, 1), name = '/branch2a_Conv3D(1)')	
-        self.branch2b = Conv3D(out_planes[3], out_planes[4], kernel_size = (3, 3, 3), name = '/branch2b_Conv3D(3)')	
+        self.branch0 = Conv3D(in_planes, out_planes[0], kernel_size = (1, 1, 1), name = '')	
+        self.branch1a = Conv3D(in_planes, out_planes[1], kernel_size = (1, 1, 1), name = '')	
+        self.branch1b = Conv3D(out_planes[1], out_planes[2], kernel_size = (3, 3, 3), name = '')	
+        self.branch2a = Conv3D(in_planes, out_planes[3], kernel_size = (1, 1, 1), name = '')	
+        self.branch2b = Conv3D(out_planes[3], out_planes[4], kernel_size = (3, 3, 3), name = '')	
         self.branch3a = MaxPool3DSame(kernel_size = (3, 3, 3), stride = (1, 1, 1))	
-        self.branch3b = Conv3D(in_planes, out_planes[5], kernel_size = (1, 1, 1), name = '/branch3b_Conv3D(1)')	
+        self.branch3b = Conv3D(in_planes, out_planes[5], kernel_size = (1, 1, 1), name = '')	
 
     def forward(self, x):	
 
@@ -78,9 +78,23 @@ class InceptionI3D(TemplateNetwork):
         self.compile_module()
 
 if __name__ == '__main__':	
-    device = torch.device('cuda:0')
+    device = torch.device('cpu')
     #model = InceptionI3D(101, device).to(device)
     model = InceptionI3D(device, 101, 3, endpoint=['Logits', 'Softmax'])
-    #x = torch.randn((1, 3, 64, 224, 224)).to(device)
-
-    #y = model.forward(x)
+    
+    missingkey = model.net.load_state_dict(torch.load('../pretrained/i3d_rgb_charades.pth.tar'), strict=False)
+    
+#    for name, param in model.net.named_parameters():
+#        if param.requires_grad:
+#            print(name, '####', param.shape)
+    
+#    ppp = torch.load('../../i3d/rgb_imagenet.pt')
+#    keys = []
+#    for k, v in oldp.items():
+#        keys.append(k)
+#    keys.sort()
+#    for k in keys:
+#        print(k, '####', oldp[k].shape)
+    
+    x = torch.randn((1, 3, 64, 224, 224)).to(device)
+    y = model.forward(x)

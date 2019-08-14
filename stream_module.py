@@ -90,7 +90,7 @@ class StreamTrainer(object):
         module = importlib.import_module('network.'+net_config['module'])
         self.model = getattr(module, net_config['class'])(self.device, BASE_CONFIG['dataset'][self.args['dataset']]['label_num'], 
                        BASE_CONFIG['channel'][self.args['modality']], endpoint=endpoint)
-        self.model.compile_module()
+        #self.model.compile_module()
         
     def load_pretrained_model(self):
         """
@@ -539,16 +539,52 @@ class StreamTrainer(object):
         
 if __name__ == '__main__':
     from json import loads
-    j = r"""{
-      "device": "cuda:0", 
-      "full_model": "output\\stream\\UCF-101\\split1\\training\\test.pth.tar", 
-      "test_method": "10-clips",
-      "test_batch_size": 1,
-      "test_subbatch_size": 10,
-      "is_debug_mode": true,
-      "debug_mode": "distributed",
+    j = """{
+      "base_lr": 0.01, 
+      "batch_size": 8,
+      "clip_len" : 64,
+      "crop_h": 224, 
+      "crop_w": 224, 
+      "dataset": "UCF-101", 
+      "debug_mode": "peek", 
+      "debug_train_size": 4, 
+      "debug_val_size": 4, 
+      "device": "cpu", 
+      "dropout": 0.0, 
+      "epoch": 3, 
+      "freeze_point": "Mixed_3c",
+      "is_batch_size": false, 
+      "is_debug_mode": true, 
+      "is_mean_sub": false, 
+      "is_rand_flip": true,
+      "l2decay": 0.01, 
+      "last_step": -1, 
+      "loss_threshold": 0.0001, 
+      "lr_reduce_ratio": 0.1, 
+      "lr_scheduler": "dynamic", 
+      "min_lr": 0.0, 
+      "modality": "rgb",
+      "momentum": 0.1, 
+      "network": "i3d", 
+      "output_compare": [], 
+      "output_name": "test",
+      "patience": 10, 
+      "pretrain_model": "i3d_rgb_charades.pth.tar",
+      "resize_h": 256, 
+      "resize_w": 342, 
+      "split": 1, 
+      "step_size": 10, 
+      "sub_batch_size": 1,
+      "val_batch_size": 2,
+      "test_method": "none",
+      "half_model" : "flow_conv2.pth.tar",
+      "full_model": "flow_conv2.pth.tar",
+      "test_batch_size": 6,
+      "test_subbatch_size": 60,
       "debug_test_size": 2
     }"""
     temp = StreamTrainer(loads(j))
-    temp.setup_testing()
-    temp.test_net()
+    temp.setup_training()
+    temp.train_net()
+    #temp.setup_testing()
+    #temp.test_net()

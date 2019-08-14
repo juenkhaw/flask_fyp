@@ -135,10 +135,10 @@ def temporal_crop(buffer_len, clip_len):
     """
     sample_len = clip_len + clip_len / 2
     # randomly select time index for temporal jittering
-    if buffer_len >= sample_len:
+    if buffer_len > sample_len:
         start_index = np.random.randint(buffer_len - clip_len)
     else:
-        if buffer_len != 32:
+        if buffer_len != sample_len:
             multiplier = int(np.ceil(sample_len / buffer_len))
         else:
             multiplier = 2
@@ -396,7 +396,7 @@ class Videoset(Dataset):
                 s_index = spatial_center_crop((self._args['resize_h'], self._args['resize_w']), 
                                               (self._args['crop_h'], self._args['crop_w']))
             elif self._args['test_method'] == '10-crops': # 10-crops
-                t_index.append(temporal_center_crop(frame_count, self._args['clip_len']))
+                t_index = temporal_uniform_crop(frame_count, self._args['clip_len'], 10)
                 s_index = spatial_10_crop((self._args['resize_h'], self._args['resize_w']), 
                                               (self._args['crop_h'], self._args['crop_w']))
             else:
@@ -405,6 +405,8 @@ class Videoset(Dataset):
                                        (self._args['crop_h'], self._args['crop_w']))
             
         clip_count = 10 if self._mode == 'test' and self._args['test_method'] != 'none' else 1
+        if clip_count == 10 and self._args['test_method'] == '10-crops':
+            clip_count = 100
         channel_count = 3 if self._args['modality'] == 'rgb' else 2
         buffer = np.empty((clip_count, self._args['clip_len'], self._args['crop_h'], 
                            self._args['crop_w'], channel_count), np.float32)
@@ -431,6 +433,7 @@ class Videoset(Dataset):
                     if buffer_frame[i] is not None:
                         
                         if self._args['test_method'] == 'none' and self._mode == 'test':
+                            
                             buffer_frame[i] = cv2.resize(buffer_frame[i], (self._args['crop_w'], self._args['crop_w']))
                             
                             # copying to the buffer tensor
@@ -518,9 +521,9 @@ if __name__ == '__main__':
     temp = Videoset({'dataset':'UCF-101', 'modality':'rgb', 'split':1, 'is_debug_mode':0, 'debug_mode':'distributed', 
                      'debug_train_size':4, 'clip_len':8, 'resize_h':128, 'resize_w':171, 'crop_h':112, 
                      'crop_w':112, 'is_mean_sub':False, 'is_rand_flip':False, 'debug_test_size':4, 
-                     'test_method':'10-crops', 'debug_test_size':4}, 'val')
+                     'test_method':'10-crops', 'debug_test_size':4}, 'test')
     #temp._read_first_frame_forach_label()
-#    a = temp.__getitem__(33)
+    a = temp.__getitem__(33)
 #    at = transform_buffer(a, True)
 #    for i in range(8):
 #        #cv2.imshow('t', cv2.cvtColor(at[4, i], cv2.COLOR_RGB2BGR))
