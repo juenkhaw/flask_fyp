@@ -70,15 +70,15 @@ class InceptionI3D(TemplateNetwork):
         self.add_module('Logits', Conv3D(1024, num_classes, kernel_size = (1, 1, 1), 	
                                     padding = 'VALID', activation = None, 	
                                     use_BN = False, use_bias = True))
-        self.add_inter_process('Linear', {torch.Tensor.view : {'size' : (-1, num_classes * 7)}})
-        self.add_module('Linear', nn.Linear(num_classes * 7, num_classes))
+        self.add_inter_process('Linear', {torch.Tensor.view : {'size' : (-1, num_classes)}})
+        self.add_module('Linear', nn.Linear(num_classes, num_classes))
         self.add_module('Softmax', nn.Softmax(dim = 1))
         
         # compile into a complete network
         self.compile_module()
 
 if __name__ == '__main__':	
-    device = torch.device('cpu')
+    device = torch.device('cuda:0')
     #model = InceptionI3D(101, device).to(device)
     model = InceptionI3D(device, 101, 3, endpoint=['Logits', 'Softmax'])
     
@@ -96,5 +96,5 @@ if __name__ == '__main__':
 #    for k in keys:
 #        print(k, '####', oldp[k].shape)
     
-    x = torch.randn((1, 3, 64, 224, 224)).to(device)
+    x = torch.randn((1, 3, 16, 224, 224)).to(device)
     y = model.forward(x)

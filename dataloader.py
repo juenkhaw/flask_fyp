@@ -16,55 +16,55 @@ from glob import glob
 from os import listdir, path, makedirs
 from shutil import copy2
 
-#from . import BASE_CONFIG
+#from flask_fyp import BASE_CONFIG
 
-BASE_CONFIG = {
-"channel": {
-        "rgb" : 3,
-        "flow" : 2
-},
-"network":
-    {
-        "r2p1d-18":
-                {
-                "module":"r2p1d",
-                "class":"R2P1D18Net"
-                },
-        "r2p1d-34":
-                {
-                "module":"r2p1d",
-                "class":"R2P1D34Net"
-                },
-        "i3d":
-                {
-                "module":"i3d",
-                "class":"InceptionI3D"
-                }
-    },
-"dataset":
-    {
-        "UCF-101":
-                {
-                "label_num" : 101,
-                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
-                "split" : 3,
-                "label_index_txt" : "classInd.txt",
-                "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
-                "val_txt" : ["ucf_validationlist01.txt", "ucf_validationlist02.txt", "ucf_validationlist03.txt"],
-                "test_txt" : ["ucf_testlist01.txt", "ucf_testlist02.txt", "ucf_testlist03.txt"]
-                },
-        "HMDB-51":
-                {
-                "label_num" : 51,
-                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\HMDB-51",
-                "split" : 3,
-                "label_index_txt" : "classInd.txt", 
-                "train_txt" : ["hmdb_trainlist01.txt", "hmdb_trainlist02.txt", "hmdb_trainlist03.txt"],
-                "val_txt" : [], 
-                "test_txt" : ["hmdb_testlist01.txt", "hmdb_testlist02.txt", "hmdb_testlist03.txt"]
-                }
-    }
-}
+#BASE_CONFIG = {
+#"channel": {
+#        "rgb" : 3,
+#        "flow" : 2
+#},
+#"network":
+#    {
+#        "r2p1d-18":
+#                {
+#                "module":"r2p1d",
+#                "class":"R2P1D18Net"
+#                },
+#        "r2p1d-34":
+#                {
+#                "module":"r2p1d",
+#                "class":"R2P1D34Net"
+#                },
+#        "i3d":
+#                {
+#                "module":"i3d",
+#                "class":"InceptionI3D"
+#                }
+#    },
+#"dataset":
+#    {
+#        "UCF-101":
+#                {
+#                "label_num" : 101,
+#                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
+#                "split" : 3,
+#                "label_index_txt" : "classInd.txt",
+#                "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
+#                "val_txt" : ["ucf_validationlist01.txt", "ucf_validationlist02.txt", "ucf_validationlist03.txt"],
+#                "test_txt" : ["ucf_testlist01.txt", "ucf_testlist02.txt", "ucf_testlist03.txt"]
+#                },
+#        "HMDB-51":
+#                {
+#                "label_num" : 51,
+#                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\HMDB-51",
+#                "split" : 3,
+#                "label_index_txt" : "classInd.txt", 
+#                "train_txt" : ["hmdb_trainlist01.txt", "hmdb_trainlist02.txt", "hmdb_trainlist03.txt"],
+#                "val_txt" : [], 
+#                "test_txt" : ["hmdb_testlist01.txt", "hmdb_testlist02.txt", "hmdb_testlist03.txt"]
+#                }
+#    }
+#}
                 
 def generate_subbatches(sbs, *tensors):
     """
@@ -455,11 +455,11 @@ class Videoset(Dataset):
                                     buffer_frame2 = buffer_frame[i][s_index[s][0][0] : s_index[s][0][1], 
                                                  s_index[s][1][0] : s_index[s][1][1], :]
                                     if channel_count == 3:
-                                        np.copyto(buffer[s, frame - t_index[t][0], :, :, :], buffer_frame2)
-                                        np.copyto(buffer[s+5, frame - t_index[t][0], :, :, :], np.flip(buffer_frame2, axis = 1))
+                                        np.copyto(buffer[t * 10 + s, frame - t_index[t][0], :, :, :], buffer_frame2)
+                                        np.copyto(buffer[t * 10 + s + 5, frame - t_index[t][0], :, :, :], np.flip(buffer_frame2, axis = 1))
                                     else:
-                                        np.copyto(buffer[s, (frame - t_index[t][0]), :, :, i], buffer_frame2[:, :, 0])
-                                        np.copyto(buffer[s+5, (frame - t_index[t][0]), :, :, i], np.flip(buffer_frame2[:, :, 0], axis = 1))
+                                        np.copyto(buffer[t * 10 + s, (frame - t_index[t][0]), :, :, i], buffer_frame2[:, :, 0])
+                                        np.copyto(buffer[t * 10 + s + 5, (frame - t_index[t][0]), :, :, i], np.flip(buffer_frame2[:, :, 0], axis = 1))
                             
                             else: # other besides 10-crop testing
                                 # applying random cropping for training and center cropping for validation/10-clips testing
@@ -516,14 +516,63 @@ class Videoset(Dataset):
                 current_sample = glob(path.join(self._base_dir, self._X_path[index][0], '*.jpg'))[0]
                 copy2(current_sample, path.join(save_path,self._label_list[i]+'.jpg'))
                 index += self._Y_freq[i]
+                
+def read_frames_for_visualization(dataset_path, video_name, clip_len, spat_w, spat_h, mean_sub = True):
+    
+    # read path
+    paths = [glob(path.join(dataset_path, 'rgb', video_name, '*jpg')), 
+             glob(path.join(dataset_path, 'flow', 'u', video_name, '*jpg')),
+             glob(path.join(dataset_path, 'flow', 'v', video_name, '*jpg'))]
+    for p in paths: p.sort()
+    
+    # extract middle section of video
+    t_index = temporal_center_crop(len(paths[0]), clip_len)
+    
+    buffer_frames = []
+    for p, m in enumerate([3, 1, 1]):
+        buffer_frame = np.empty((1, clip_len, spat_h, spat_w, m))
+        for t in range(t_index[0], t_index[1]):
+            
+            ft = t
+            while ft >= len(paths[p]): ft -= len(paths[p])
+            
+            buffer = cv2.imread(paths[p][ft], cv2.IMREAD_COLOR if m == 3 else cv2.IMREAD_GRAYSCALE)
+            buffer = cv2.resize(buffer, (spat_w, spat_h))
+            if m == 3:
+                buffer = cv2.cvtColor(buffer, cv2.COLOR_BGR2RGB)
+            else:
+                buffer = buffer[:,:,np.newaxis]
+            np.copyto(buffer_frame[0, t - t_index[0]], buffer)
+        if m == 1 and mean_sub:
+            buffer_frame = flow_mean_sub(buffer_frame)
+        buffer_frame = normalize_buffer(buffer_frame)
+        buffer_frames.append(buffer_frame)
+    
+    # concat flows
+    rgb_frame = buffer_frames[0]
+    flow_frame = np.concatenate((buffer_frames[1], buffer_frames[2]), axis = 4)
+    
+    return transform_buffer(rgb_frame, False), transform_buffer(flow_frame, False)
 
 if __name__ == '__main__':
-    temp = Videoset({'dataset':'UCF-101', 'modality':'rgb', 'split':1, 'is_debug_mode':0, 'debug_mode':'distributed', 
-                     'debug_train_size':4, 'clip_len':8, 'resize_h':128, 'resize_w':171, 'crop_h':112, 
-                     'crop_w':112, 'is_mean_sub':False, 'is_rand_flip':False, 'debug_test_size':4, 
-                     'test_method':'10-crops', 'debug_test_size':4}, 'test')
-    #temp._read_first_frame_forach_label()
-    a = temp.__getitem__(33)
+    rgb, flow = read_frames_for_visualization('C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101', 
+                                  'v_ApplyEyeMakeup_g08_c01', 8, 112, 112)
+    rgb = transform_buffer(rgb, True)
+    flow = transform_buffer(flow, True)
+    rgb = denormalize_buffer(rgb)
+    flow = denormalize_buffer(flow)
+    for i in range(8):
+        cv2.imshow('rgb', rgb[0, i])
+        cv2.imshow('flow1', flow[0, i, :, :, 0])
+        cv2.imshow('flow2', flow[0, i, :, :, 1])
+        cv2.waitKey()
+    cv2.destroyAllWindows()
+#    temp = Videoset({'dataset':'UCF-101', 'modality':'rgb', 'split':1, 'is_debug_mode':0, 'debug_mode':'distributed', 
+#                     'debug_train_size':4, 'clip_len':8, 'resize_h':128, 'resize_w':171, 'crop_h':112, 
+#                     'crop_w':112, 'is_mean_sub':False, 'is_rand_flip':False, 'debug_test_size':4, 
+#                     'test_method':'10-crops', 'debug_test_size':4}, 'test')
+#    #temp._read_first_frame_forach_label()
+#    a = temp.__getitem__(33)
 #    at = transform_buffer(a, True)
 #    for i in range(8):
 #        #cv2.imshow('t', cv2.cvtColor(at[4, i], cv2.COLOR_RGB2BGR))

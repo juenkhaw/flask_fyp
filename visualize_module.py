@@ -10,6 +10,11 @@ import torch.nn as nn
 import numpy as np
 import cv2
 
+import importlib
+
+from . import BASE_CONFIG
+from .dataloader import read_frames_for_visualization, transform_buffer, denormalize_buffer
+
 class GBP(object):
     """
     Class containing guided backprop visualization tools
@@ -231,6 +236,29 @@ class GradCAM(object):
         grad_cam = np.multiply(grad, cam)
         grad_cam = np.uint8((grad_cam - np.min(grad_cam)) / (np.max(grad_cam) - np.min(grad_cam)) * 255)
         return grad_cam
+    
+class StreamVis(object):
+    
+    def __init__(self, args):
+        
+        self.args = torch.load(args['vis_model'])['args']
+        self.device = torch.device(args['device'])
+        net_config = BASE_CONFIG['network'][self.args['network']]
+        
+        print('visualize/initializing network')
+        module = importlib.import_module('network.'+net_config['module'])
+        self.model = getattr(module, net_config['class'])(self.device, BASE_CONFIG['dataset'][self.args['dataset']]['label_num'], 
+                       BASE_CONFIG['channel'][self.args['modality']])
+        
+        print('visualize/loading model state')
+        self.model.net.load_state_dict(torch.load(args['vis_model'].replace('training', 'state'), 
+                                                  map_location=lambda storage, location: storage.cuda(int(args['device'][-1])) if 'cuda' in self.args['device'] else storage)['model'])
+        torch.cuda.empty_cache()
+        
+        self.dataset_path = BASE_CONFIG['dataset'][self.args['dataset']]['base_path']
+        
+    def fetch_input(self):
+        pass
         
 if __name__ == '__main__':
     from network.r2p1d import R2P1D34Net

@@ -10,54 +10,55 @@ from os import path, makedirs
 
 from dataloader import Videoset, generate_subbatches
 from graph import cv_confusion_matrix
-#from . import BASE_CONFIG
-BASE_CONFIG = {
-"channel": {
-        "rgb" : 3,
-        "flow" : 2
-},
-"network":
-    {
-        "r2p1d-18":
-                {
-                "module":"r2p1d",
-                "class":"R2P1D18Net"
-                },
-        "r2p1d-34":
-                {
-                "module":"r2p1d",
-                "class":"R2P1D34Net"
-                },
-        "i3d":
-                {
-                "module":"i3d",
-                "class":"InceptionI3D"
-                }
-    },
-"dataset":
-    {
-        "UCF-101":
-                {
-                "label_num" : 101,
-                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
-                "split" : 3,
-                "label_index_txt" : "classInd.txt",
-                "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
-                "val_txt" : ["ucf_validationlist01.txt", "ucf_validationlist02.txt", "ucf_validationlist03.txt"],
-                "test_txt" : ["ucf_testlist01.txt", "ucf_testlist02.txt", "ucf_testlist03.txt"]
-                },
-        "HMDB-51":
-                {
-                "label_num" : 51,
-                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\HMDB-51",
-                "split" : 3,
-                "label  _index_txt" : "classInd.txt", 
-                "train_txt" : ["hmdb_trainlist01.txt", "hmdb_trainlist02.txt", "hmdb_trainlist03.txt"],
-                "val_txt" : [], 
-                "test_txt" : ["hmdb_testlist01.txt", "hmdb_testlist02.txt", "hmdb_testlist03.txt"]
-                }
-    }
-}
+from . import BASE_CONFIG
+
+#BASE_CONFIG = {
+#"channel": {
+#        "rgb" : 3,
+#        "flow" : 2
+#},
+#"network":
+#    {
+#        "r2p1d-18":
+#                {
+#                "module":"r2p1d",
+#                "class":"R2P1D18Net"
+#                },
+#        "r2p1d-34":
+#                {
+#                "module":"r2p1d",
+#                "class":"R2P1D34Net"
+#                },
+#        "i3d":
+#                {
+#                "module":"i3d",
+#                "class":"InceptionI3D"
+#                }
+#    },
+#"dataset":
+#    {
+#        "UCF-101":
+#                {
+#                "label_num" : 101,
+#                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101",
+#                "split" : 3,
+#                "label_index_txt" : "classInd.txt",
+#                "train_txt" : ["ucf_trainlist01.txt", "ucf_trainlist02.txt", "ucf_trainlist03.txt"],
+#                "val_txt" : ["ucf_validationlist01.txt", "ucf_validationlist02.txt", "ucf_validationlist03.txt"],
+#                "test_txt" : ["ucf_testlist01.txt", "ucf_testlist02.txt", "ucf_testlist03.txt"]
+#                },
+#        "HMDB-51":
+#                {
+#                "label_num" : 51,
+#                "base_path" : "C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\HMDB-51",
+#                "split" : 3,
+#                "label  _index_txt" : "classInd.txt", 
+#                "train_txt" : ["hmdb_trainlist01.txt", "hmdb_trainlist02.txt", "hmdb_trainlist03.txt"],
+#                "val_txt" : [], 
+#                "test_txt" : ["hmdb_testlist01.txt", "hmdb_testlist02.txt", "hmdb_testlist03.txt"]
+#                }
+#    }
+#}
 
 class StreamTrainer(object):
 
@@ -312,8 +313,11 @@ class StreamTrainer(object):
         for self.epoch in range(epoch, self.args['epoch'] + 1):
             timer['total'] = time()
             
-            for self.phase in self.dataloaders.keys():
+            for self.phase in ['train', 'val']:
                 torch.cuda.empty_cache()
+                
+                if 'val' not in self.dataloaders.keys():
+                    continue
                 
                 # anticipating total batch count
                 self.batch = 0
@@ -437,7 +441,7 @@ class StreamTrainer(object):
                     self.save_cfm(performances['val_result'], 'val', self.dataloaders['val'])
             
             self.elapsed['total'] += time() - timer['total']
-            print('train_stream/currently completed epoch', self.epoch)
+            #print('train_stream/currently completed epoch', self.epoch)
             
             save_path = 'output/stream/'+self.args['dataset']+'/split'+str(self.args['split'])+'/'
             
@@ -447,6 +451,10 @@ class StreamTrainer(object):
             
             if not path.exists(save_path+'state/'):
                 makedirs(save_path+'state/')
+                
+            print('Epoch %d | lr %.1E | TrainLoss %.4f | ValLoss %.4f | TrainAcc %.4f | ValAcc %.4f' % 
+              (self.epoch, lr, performances['train_loss'][self.epoch - 1], performances['val_loss'][self.epoch - 1], 
+               performances['train_acc'][self.epoch - 1], performances['val_acc'][self.epoch - 1]))
             
             torch.save({
                     'model':self.model.net.state_dict(), 'optimizer':self.optimizer.state_dict(), 
@@ -510,12 +518,6 @@ class StreamTrainer(object):
             # average the scores for each classes across all clips that belong to the same video
             averaged_score = np.average(np.array(np.split(outputs, batch_size)), axis = 1)
             
-            # concet into all scores
-#            if all_scores == []:
-#                all_scores = averaged_score
-#            else:
-#                all_scores = np.concatenate((all_scores, averaged_score), axis = 0)
-            
             # retrieve the label index with the top-5 scores
             top_k_indices = np.argsort(averaged_score, axis = 1)[:, ::-1][:, :5]
             
@@ -541,18 +543,18 @@ if __name__ == '__main__':
     from json import loads
     j = """{
       "base_lr": 0.01, 
-      "batch_size": 8,
-      "clip_len" : 64,
+      "batch_size": 32,
+      "clip_len" : 16,
       "crop_h": 224, 
       "crop_w": 224, 
       "dataset": "UCF-101", 
       "debug_mode": "peek", 
-      "debug_train_size": 4, 
-      "debug_val_size": 4, 
-      "device": "cpu", 
+      "debug_train_size": 8, 
+      "debug_val_size": 8, 
+      "device": "cuda:0", 
       "dropout": 0.0, 
       "epoch": 3, 
-      "freeze_point": "Mixed_3c",
+      "freeze_point": "none",
       "is_batch_size": false, 
       "is_debug_mode": true, 
       "is_mean_sub": false, 

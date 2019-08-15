@@ -210,3 +210,40 @@ class InspectStreamForm(FlaskForm):
         self.main_model.choices.extend([(x, x) for x in glob.glob('output\\stream\\**\\training\\*.pth.tar', recursive=True)])
         
         self.model_compare.choices = self.main_model.choices[1:]
+        
+class VisualizeStreamForm1(FlaskForm):
+    
+    # basic setup
+    vis_model = SelectField(u'Stream Model', validators=[InputRequired(), validate_empty_select])
+    device = SelectField(u'Device', choices = [], validators=[InputRequired()])
+    
+    submit = SubmitField('Load Model')
+    
+    def __init__(self, gpu_names):
+        super(VisualizeStreamForm1, self).__init__()
+        
+        self.vis_model.choices = [('', '')]
+        self.vis_model.choices.extend([(x, x) for x in glob.glob('output\\stream\\**\\training\\*.pth.tar', recursive=True)])
+        
+        self.device.choices = [('cuda:'+str(i), 'CUDA:'+str(i)+' '+gpu_names[i]) for i in range(len(gpu_names))]
+        self.device.choices.extend([('cpu', 'CPU')])
+
+class VisualizeStreamForm2(FlaskForm):
+    
+    clip_len = IntegerField(u'Clip Length', validators=[InputRequired(), num_range(min = 1)])
+    target_class = SelectField(u'Target Class', validators=[InputRequired()], coerce=int)
+    clip_name = StringField(u'Testing Clip Name', validators=[InputRequired()])
+    vis_layer = SelectMultipleField(u'GradCAM Target Layer', validators=[InputRequired()], coerce=str)
+    
+    submit = SubmitField('Run')
+    
+    def __init__(self, clip_len, index_path, net_layer):
+        super(VisualizeStreamForm2, self).__init__()
+        
+        f_in = open(index_path)
+        self.target_class.choices = [(x.split(' ')[0], x) for x in (f_in.read().split('\n'))[:-1]]
+        f_in.close()
+        
+        self.clip_len.default = clip_len
+        
+        self.vis_layer.choices = [(x, x) for x in net_layer if x not in ['Linear', 'Softmax', 'Logits']]

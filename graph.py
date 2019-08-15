@@ -411,6 +411,8 @@ def plotly_confusion_matrix(cfm, label, title):
     fig = go.Figure(data=data, layout=layout)
     #fig.write_image('C:/Users/Juen/Desktop/Gabumon/Blackhole/UTAR/Subjects/FYP/flask_fyp/output.png')
     print('inspect_stream/EXPORTING CFM')
+    if not path.exists('static/inspect/'+title):
+        makedirs('static/inspect/'+title)
     py.plot(fig, filename='static/inspect/'+title+'/cfm.html', config=config, auto_open=False)
     print('inspect_stream/CFM DONE')
     

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script>
+</script>
+
+<style>
+	form {
+        width: 1050px;
+        background-color: lightgray;
+        margin: auto;
+        text-align: center;
+		padding: 5px;
+    }
+	
+	
+</style>
+
+<form action="" method="POST" novalidate>
+    {{form.hidden_tag()}}
+	
+	<p>
+		{{form.vis_model.label}}<span style="color:red">*</span><br>
+		{{form.vis_model}} <br>
+		{%for error in form.vis_model.errors%}
+		<span style="color: red;">[{{error}}]</span><br>
+		{%endfor%}
+	</p>
+	
+	<p>
+		{{form.device.label}}<span style="color:red">*</span><br>
+		{{form.device}}
+	</p>
+	
+	<p>
+		{{form.submit}}
+	</p>
+
+{% endblock %}

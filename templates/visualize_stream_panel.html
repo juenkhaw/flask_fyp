@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script>
+</script>
+
+<style>
+	
+	#outer {
+        width: 1050px;
+        background-color: lightgray;
+        margin: auto;
+    }
+
+    .title {
+        text-align: center;
+        font-weight: bold;
+        background: white;
+        border: 1px black solid;
+        padding: 5px;
+    }
+
+    .content {
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-bottom: 10px;
+        text-align: center;
+    }
+	
+	#panel_detail {
+		width: 40%;
+		float: left;
+	}
+	
+	#panel_form {
+		width: 40%;
+		display: inline-block;
+	}
+	
+	.default_text {
+        color: red;
+        text-align: center;
+    }
+</style>
+
+<div id="outer">
+	<p class="title">Control Panel</p>
+	<div class="content" id="panel">
+		<div id="panel_detail">
+			<p>Dataset<br><b>{{args['dataset']}}</b></p>
+			<p>Split<br><b>Split {{args['split']}}</b></p>
+			<p>Modality<br><b>{{args['modality']}}</b></p>
+			<p>Network<br><b>{{args['network']}}</b></p>
+		</div>
+		<form action="" method="POST" novalidate>
+			{{form.hidden_tag()}}
+			<div id="panel_form">
+			<p>
+				{{form.clip_name.label}}<span style="color:red">*</span><br>
+				{{form.clip_name}} <br>
+				{%for error in form.clip_name.errors%}
+				<span style="color: red;">[{{error}}]</span><br>
+				{%endfor%}
+			</p>
+			<p>
+				{{form.clip_len.label}}<span style="color:red">*</span><br>
+				{{form.clip_len}} <br>
+				{%for error in form.clip_len.errors%}
+				<span style="color: red;">[{{error}}]</span><br>
+				{%endfor%}
+			</p>
+			<p>
+				{{form.target_class.label}}<span style="color:red">*</span><br>
+				{{form.target_class}} <br>
+				{%for error in form.target_class.errors%}
+				<span style="color: red;">[{{error}}]</span><br>
+				{%endfor%}
+			</p>
+			<p>
+				{{form.vis_layer.label}}<span style="color:red">*</span><br>
+				{{form.vis_layer}} <br>
+				{%for error in form.vis_layer.errors%}
+				<span style="color: red;">[{{error}}]</span><br>
+				{%endfor%}
+			</p>
+			</div>
+	<p>
+		{{form.submit}}
+	</p>
+	</form>
+	</div>
+	<p class="default_text">No result</p>
+</div>
+
+{% endblock %}

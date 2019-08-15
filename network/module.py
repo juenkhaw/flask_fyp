@@ -197,6 +197,7 @@ class TemplateNetwork(object):
         """
         compile completed module buffer list into a complete workable network
         """
+        assert(all([x in self.endpoints for x in ['Linear', 'Softmax']]))
         self.net = nn.Sequential(OrderedDict([x for x in self.net_order])).to(self.device)
     
     def freeze_all(self, unfreeze = False):

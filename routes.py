@@ -15,10 +15,11 @@ from os import listdir, path
 from glob import glob
 from time import sleep
 
-from .forms import TrainStreamForm, num_range, SelectField, ResumeStreamForm, TestStreamForm, InspectStreamForm
+from .forms import TrainStreamForm, num_range, SelectField, ResumeStreamForm, TestStreamForm, InspectStreamForm, VisualizeStreamForm1, VisualizeStreamForm2
 from decimal import Decimal
 
 from .stream_module import StreamTrainer
+from .visualize_module import StreamVis
 
 from .graph import *
 
@@ -517,3 +518,39 @@ def inspect_stream():
         
         else:
             return ''
+        
+@app.route('/visualize_stream', methods=['GET', 'POST'])
+def visualize_stream():
+    req = request.json
+    print('inspect_stream/request.json', req)
+    
+    if (req == {} or req == None):
+        
+        if 'sv' not in globals():
+            global sv
+            sv = None
+        
+        base_meta['title'] = 'visualize_stream'
+        base_meta['header'] = 'Stream Visualization'
+        global form
+        form = VisualizeStreamForm1(device_info['gpu_names'])
+        
+        if form.validate_on_submit():
+            print('visualize_outer/form_success')
+            sv = StreamVis(form_to_dict(form))
+            base_meta['title'] = 'visualize_stream'
+            base_meta['header'] = 'Stream Visualization - ' + form.vis_model.data
+            form = VisualizeStreamForm2(sv.args['clip_len'], 
+                                        path.join(sv.dataset_path, BASE_CONFIG['dataset'][sv.args['dataset']]['label_index_txt']),
+                                        sv.model.endpoints)
+            return render_template('visualize_stream_panel.html', base_meta = base_meta, form = form, args = sv.args)
+        else:
+            for fieldName, errorMessages in form.errors.items():
+                for err in errorMessages:
+                    print('visualize_outer/form_failed',fieldName, err)
+                    
+        return render_template('visualize_stream_setup.html', base_meta = base_meta, form = form)
+        
+    else:
+        return ''
+        
