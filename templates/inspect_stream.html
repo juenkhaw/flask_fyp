@@ -3,6 +3,11 @@
 
 <script>
 	$(document).ready(function() {
+	
+		if("{{main_test}}" === "False") {
+			$("#test_content").html("<p style='color:red'>Testing Data not available</p>");
+		}
+	
 		$("#main_loss, #main_acc").html("Updating").show();
 		
 		$("#main_loss").load("{{url_for('static', filename='graph/main_loss.html')}}")
@@ -139,7 +144,7 @@
     }
 
     #train_loss, #train_acc, #val_loss, #val_acc {
-        width: 250px;
+        width: 480px;
         height: 300px;
     }
 	
@@ -200,7 +205,7 @@
 	</div>
 	
 	<p class="title">Confusion Matrix</p>
-    <div class="content">
+    <div class="content" id="test_content">
 		<button id="cfm_chart">View Full Confusion Matrix Chart</button>
 		<div id="test_form">
 			<label for="test_display">Display</label>&Tab;
@@ -223,7 +228,7 @@
 				<option value="none" selected>by peers difference</option>
 				{% for model_name in output.keys() %}
 					{% if model_name != base_model %}
-						<option testue="{{model_name}}">{{model_name}}</option>
+						<option value="{{model_name}}">{{model_name}}</option>
 					{% endif %}
                 {% endfor %}
             </select>&Tab;

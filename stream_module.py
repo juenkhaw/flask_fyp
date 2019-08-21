@@ -467,7 +467,8 @@ class StreamTrainer(object):
     def test_net(self):
         print('stream/initiate TESTING')
         
-        all_scores = np.zeros((len(self.dataloaders.dataset._Y_freq), len(self.dataloaders.dataset._label_list)))
+        all_scores = []
+        cfm = np.zeros((len(self.dataloaders.dataset._Y_freq), len(self.dataloaders.dataset._label_list)))
         test_correct = {'top-1' : 0, 'top-5' : 0}
         test_acc = {'top-1' : 0, 'top-5' : 0}
         
@@ -518,11 +519,17 @@ class StreamTrainer(object):
             # average the scores for each classes across all clips that belong to the same video
             averaged_score = np.average(np.array(np.split(outputs, batch_size)), axis = 1)
             
+            # concet into all scores
+            if all_scores == []:
+                all_scores = averaged_score
+            else:
+                all_scores = np.concatenate((all_scores, averaged_score), axis = 0)
+            
             # retrieve the label index with the top-5 scores
             top_k_indices = np.argsort(averaged_score, axis = 1)[:, ::-1][:, :5]
             
             for i, label in enumerate(labels):
-                all_scores[label, top_k_indices[i, 0]] += 1
+                cfm[label, top_k_indices[i, 0]] += 1
             
             # compute number of matches between predicted labels and true labels
             test_correct['top-1'] += np.sum(top_k_indices[:, 0] == np.array(labels).ravel())
@@ -535,7 +542,7 @@ class StreamTrainer(object):
         save_path = 'output/stream/'+self.args['dataset']+'/split'+str(self.args['split'])+'/'
         
         self.save_main_output(save_path+'testing/', args = self.args, acc = test_acc, pred = all_scores, 
-                              result = self.compute_confusion_matrix(all_scores, self.dataloaders))
+                              result = self.compute_confusion_matrix(all_scores, self.dataloaders), cfm = cfm)
         
         self.update['result'] = True
         

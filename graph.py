@@ -171,42 +171,50 @@ def cv_confusion_matrix(frame_path, cfm, label, target='pred', sort='none', outp
             frame = cv2.resize(frame, (img_h, img_w))
             np.copyto(item[padding + img_pad : padding + img_pad + img_h, img_pad : img_pad + img_w], frame)
             #np.copyto(output[y + padding + img_pad : y + padding + img_pad + img_h, x + img_pad : x + img_pad + img_w], frame)
-                        
-            for b in range(4):
-                if top_value[index, b] == 0:
-                    break
-                cv2.rectangle(item, 
-                              (img_pad * 2 + img_w, 
-                               padding + img_pad + bar_pad * b + bar_h * b),
-                              (img_pad * 2 + img_w + int(top_value[index, b] / max_value * bar_w), 
-                               padding + img_pad + bar_pad * b + bar_h * (b + 1)),
-                              colors[1 if sorted_ind[index] == top_label[index, b] else 2], cv2.FILLED)
-                cv2.putText(item, label[top_label[index, b]], 
-                            (img_pad * 2 + img_w, 
-                             padding * 2 + img_pad + bar_pad * b + bar_h * b), 
-                             cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
-                cv2.putText(item, str(round(top_value[index, b] * 100, 2)), 
-                            (item_w - 35, 
-                             padding * 2 + img_pad + bar_pad * b + bar_h * b),
-                             cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
-                            
-            # display true label
-            if sorted_ind[index] not in top_label[index] or sorted_ind[index] == top_label[index][4]:
-                cv2.rectangle(item, 
-                              (img_pad * 2 + img_w, 
-                               padding + img_pad + bar_pad * 4 + bar_h * 4),
-                              (img_pad * 2 + img_w + int(true_value[sorted_ind[index]] / max_value * bar_w), 
-                               padding + img_pad + bar_pad * 4 + bar_h * (4 + 1)),
-                              colors[1 if sorted_ind[index] == top_label[index, 4] else 0], cv2.FILLED)
-                cv2.putText(item, label[sorted_ind[index]], 
-                            (img_pad * 2 + img_w, 
-                             padding * 2 + img_pad + bar_pad * 4 + bar_h * 4), 
-                             cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
-                cv2.putText(item, str(round(true_value[sorted_ind[index]] * 100, 2)), 
-                            (item_w - 35, 
-                             padding * 2 + img_pad + bar_pad * 4 + bar_h * 4),
-                             cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
-                
+            
+            if all([np.isnan(x) for x in top_value[index]]): 
+                cv2.putText(item, 'N/A', 
+                                (img_pad * 2 + img_w + 30, 
+                                 item_h//2), 
+                                 cv2.FONT_HERSHEY_PLAIN, 1.2, (0, 0, 255))
+            
+            else:
+            
+                for b in range(4):
+                    if top_value[index, b] == 0:
+                        break
+                    cv2.rectangle(item, 
+                                  (img_pad * 2 + img_w, 
+                                   padding + img_pad + bar_pad * b + bar_h * b),
+                                  (img_pad * 2 + img_w + int(top_value[index, b] / max_value * bar_w), 
+                                   padding + img_pad + bar_pad * b + bar_h * (b + 1)),
+                                  colors[1 if sorted_ind[index] == top_label[index, b] else 2], cv2.FILLED)
+                    cv2.putText(item, label[top_label[index, b]], 
+                                (img_pad * 2 + img_w, 
+                                 padding * 2 + img_pad + bar_pad * b + bar_h * b), 
+                                 cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
+                    cv2.putText(item, str(round(top_value[index, b] * 100, 2)), 
+                                (item_w - 35, 
+                                 padding * 2 + img_pad + bar_pad * b + bar_h * b),
+                                 cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
+                                
+                # display true label
+                if sorted_ind[index] not in top_label[index] or sorted_ind[index] == top_label[index][4]:
+                    cv2.rectangle(item, 
+                                  (img_pad * 2 + img_w, 
+                                   padding + img_pad + bar_pad * 4 + bar_h * 4),
+                                  (img_pad * 2 + img_w + int(true_value[sorted_ind[index]] / max_value * bar_w), 
+                                   padding + img_pad + bar_pad * 4 + bar_h * (4 + 1)),
+                                  colors[1 if sorted_ind[index] == top_label[index, 4] else 0], cv2.FILLED)
+                    cv2.putText(item, label[sorted_ind[index]], 
+                                (img_pad * 2 + img_w, 
+                                 padding * 2 + img_pad + bar_pad * 4 + bar_h * 4), 
+                                 cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
+                    cv2.putText(item, str(round(true_value[sorted_ind[index]] * 100, 2)), 
+                                (item_w - 35, 
+                                 padding * 2 + img_pad + bar_pad * 4 + bar_h * 4),
+                                 cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
+                    
             np.copyto(output[y : y + item_h, x : x + item_w, :], item)
     
     if not path.exists(output_path):
@@ -318,62 +326,68 @@ def cv_confusion_matrix_with_peers(frame_path, cfm, peer_cfm, label, base_name, 
             frame = cv2.resize(frame, (img_h, img_w))
             np.copyto(item[padding + img_pad : padding + img_pad + img_h, img_pad : img_pad + img_w], frame)
             
-            # base performance
-            cv2.rectangle(item, 
-                          (img_pad * 2 + img_w, 
-                           padding + img_pad),
-                          (img_pad * 2 + img_w + int(true_value[sorted_ind[index]] / max_value * bar_w), 
-                           padding + img_pad + bar_h),
-                          colors[1 if sorted_ind[index] == top_label[index, 0] else 2 if sorted_ind[index] not in top_label[index] else 0], cv2.FILLED)
-            cv2.putText(item, (base_name if len(base_name) <= 15 else base_name[:15]), 
-                        (img_pad * 2 + img_w, 
-                         padding * 2 + img_pad), 
-                         cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
-            cv2.putText(item, str(round(true_value[sorted_ind[index]] * 100, 2)), 
-                        (item_w - 35, 
-                         padding * 2 + img_pad),
-                         cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
-                        
-            # differences with peers
-            for b in range(0, len(peer_diffs)):
-                c = b + 1
-                if np.isnan(peer_diffs[b][sorted_ind[index]]):
-                    cv2.putText(item, peer_names[b], 
-                                (img_pad * 2 + img_w, 
-                                 padding * 2 + img_pad + bar_pad * c + bar_h * c), 
-                                 cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
-                    cv2.putText(item, 'N/A', 
-                                (item_w - 40, 
-                                 padding * 2 + img_pad + bar_pad * c + bar_h * c),
-                                 cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 255))
-                else:
-                    if peer_diffs[b][sorted_ind[index]] >= 0:
-                        cv2.rectangle(item, 
-                                      (img_pad * 2 + img_w + half_bar, 
-                                       padding + img_pad + bar_pad * c + bar_h * c),
-                                      (img_pad * 2 + img_w + int(peer_diffs[b][sorted_ind[index]] / max_diffs[b] * half_bar + half_bar), 
-                                       padding + img_pad + bar_pad * c + bar_h * (c + 1)),
-                                      colors[1 if sorted_ind[index] == peer_top_label[b][sorted_ind[index], 0] else 2 if sorted_ind[index] not in peer_top_label[b][sorted_ind[index]] else 0], cv2.FILLED)
+            if all([np.isnan(x) for x in top_value[index]]): 
+                cv2.putText(item, 'N/A', 
+                                (img_pad * 2 + img_w + 30, 
+                                 item_h//2), 
+                                 cv2.FONT_HERSHEY_PLAIN, 1.2, (0, 0, 255))
+            else: 
+                # base performance
+                cv2.rectangle(item, 
+                              (img_pad * 2 + img_w, 
+                               padding + img_pad),
+                              (img_pad * 2 + img_w + int(true_value[sorted_ind[index]] / max_value * bar_w), 
+                               padding + img_pad + bar_h),
+                              colors[1 if sorted_ind[index] == top_label[index, 0] else 2 if sorted_ind[index] not in top_label[index] else 0], cv2.FILLED)
+                cv2.putText(item, (base_name if len(base_name) <= 15 else base_name[:15]), 
+                            (img_pad * 2 + img_w, 
+                             padding * 2 + img_pad), 
+                             cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
+                cv2.putText(item, str(round(true_value[sorted_ind[index]] * 100, 2)), 
+                            (item_w - 35, 
+                             padding * 2 + img_pad),
+                             cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
+                            
+                # differences with peers
+                for b in range(0, len(peer_diffs)):
+                    c = b + 1
+                    if np.isnan(peer_diffs[b][sorted_ind[index]]):
+                        cv2.putText(item, peer_names[b], 
+                                    (img_pad * 2 + img_w, 
+                                     padding * 2 + img_pad + bar_pad * c + bar_h * c), 
+                                     cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
+                        cv2.putText(item, 'N/A', 
+                                    (item_w - 40, 
+                                     padding * 2 + img_pad + bar_pad * c + bar_h * c),
+                                     cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 255))
                     else:
-                        cv2.rectangle(item, 
-                                      (img_pad * 2 + img_w + half_bar - abs(int(peer_diffs[b][sorted_ind[index]] / max_diffs[b] * half_bar)), 
-                                       padding + img_pad + bar_pad * c + bar_h * c),
-                                      (img_pad * 2 + img_w + half_bar, 
-                                       padding + img_pad + bar_pad * c + bar_h * (c + 1)),
-                                      colors[1 if sorted_ind[index] == peer_top_label[b][sorted_ind[index], 0] else 2 if sorted_ind[index] not in peer_top_label[b][sorted_ind[index]] else 0], cv2.FILLED)
-                    cv2.putText(item, ('*' if peer_names[b] == by_peer else '') + (peer_names[b] if len(peer_names[b]) <= 15 else peer_names[b][:15]), 
-                                (img_pad * 2 + img_w, 
-                                 padding * 2 + img_pad + bar_pad * c + bar_h * c), 
-                                 cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
-                    cv2.putText(item, ('+' if peer_diffs[b][sorted_ind[index]] >= 0 else '') + str(round(peer_diffs[b][sorted_ind[index]] * 100, 2)), 
-                                (item_w - 43, 
-                                 padding * 2 + img_pad + bar_pad * c + bar_h * c),
-                                 cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
-            
-            # seperator line
-            cv2.line(item, (img_pad * 2 + img_w + half_bar, padding + img_pad + bar_pad + bar_h), 
-                     (img_pad * 2 + img_w + half_bar, padding + img_pad + bar_pad * 5 + bar_h * 5 - padding), 
-                     (0, 0, 0))
+                        if peer_diffs[b][sorted_ind[index]] >= 0:
+                            cv2.rectangle(item, 
+                                          (img_pad * 2 + img_w + half_bar, 
+                                           padding + img_pad + bar_pad * c + bar_h * c),
+                                          (img_pad * 2 + img_w + int(peer_diffs[b][sorted_ind[index]] / max_diffs[b] * half_bar + half_bar), 
+                                           padding + img_pad + bar_pad * c + bar_h * (c + 1)),
+                                          colors[1 if sorted_ind[index] == peer_top_label[b][sorted_ind[index], 0] else 2 if sorted_ind[index] not in peer_top_label[b][sorted_ind[index]] else 0], cv2.FILLED)
+                        else:
+                            cv2.rectangle(item, 
+                                          (img_pad * 2 + img_w + half_bar - abs(int(peer_diffs[b][sorted_ind[index]] / max_diffs[b] * half_bar)), 
+                                           padding + img_pad + bar_pad * c + bar_h * c),
+                                          (img_pad * 2 + img_w + half_bar, 
+                                           padding + img_pad + bar_pad * c + bar_h * (c + 1)),
+                                          colors[1 if sorted_ind[index] == peer_top_label[b][sorted_ind[index], 0] else 2 if sorted_ind[index] not in peer_top_label[b][sorted_ind[index]] else 0], cv2.FILLED)
+                        cv2.putText(item, ('*' if peer_names[b] == by_peer else '') + (peer_names[b] if len(peer_names[b]) <= 15 else peer_names[b][:15]), 
+                                    (img_pad * 2 + img_w, 
+                                     padding * 2 + img_pad + bar_pad * c + bar_h * c), 
+                                     cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
+                        cv2.putText(item, ('+' if peer_diffs[b][sorted_ind[index]] >= 0 else '') + str(round(peer_diffs[b][sorted_ind[index]] * 100, 2)), 
+                                    (item_w - 43, 
+                                     padding * 2 + img_pad + bar_pad * c + bar_h * c),
+                                     cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
+                
+                # seperator line
+                cv2.line(item, (img_pad * 2 + img_w + half_bar, padding + img_pad + bar_pad + bar_h), 
+                         (img_pad * 2 + img_w + half_bar, padding + img_pad + bar_pad * 5 + bar_h * 5 - padding), 
+                         (0, 0, 0))
             
             np.copyto(output[y : y + item_h, x : x + item_w, :], item)
             

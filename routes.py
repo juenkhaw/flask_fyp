@@ -9,6 +9,7 @@ from . import app, BASE_CONFIG
 from flask import render_template, url_for, request, jsonify, redirect
 
 import torch
+import numpy as np
 
 from threading import Thread
 from os import listdir, path
@@ -442,10 +443,19 @@ def inspect_stream():
                         if pkg['acc']['top-1'] > best_acc[model_name]:
                             best_test_pkg[model_name] = pkg
                             best_acc[model_name] = pkg['acc']['top-1']
+                            
+            nan_array = np.full((int(BASE_CONFIG['dataset'][base_dataset]['label_num']),int(BASE_CONFIG['dataset'][base_dataset]['label_num'])), np.nan)
+                            
+            best_test_pkg.update({ x : {'result' : {'score' : nan_array, 'pred' : nan_array}} for x in peer_model[1:] if x not in best_test_pkg.keys()})
             
-            Thread(target=plotly_confusion_matrix, args=(best_test_pkg[main_model]['cfm'], label_list, main_model)).start()
+            main_test = True
+            if main_model in best_test_pkg.keys():
+                Thread(target=plotly_confusion_matrix, args=(best_test_pkg[main_model]['cfm'], label_list, main_model)).start()
+            else:
+                main_test = False
                         
             # training state
+            print('inspect_stream/PLOTTING TRAINING STATS')
             main_loss_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_loss'], train_pkg[main_model]['output']['val_loss'], title=main_model)
             main_acc_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_acc'], train_pkg[main_model]['output']['val_acc'], title=main_model)
             if len(peer_model) > 1: # if there is any comparison
@@ -454,8 +464,8 @@ def inspect_stream():
                 comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_acc', 'accuracy')
                 comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'val_acc', 'accuracy')
             
-            
             # validation plot
+            print('inspect_stream/PLOTTING VALIDATION/TESTING STATS')
             for metric in ['pred', 'score']:
                 for val_sort in ['desc', 'asc', 'none']:
                     cv_confusion_matrix('static/'+base_dataset+'/'+base_split+'/val/', train_pkg[main_model]['output']['val_result'],
@@ -486,13 +496,14 @@ def inspect_stream():
                                                            target=metric, sort=val_sort, by_peer=sort_model, 
                                                            output_path='static/inspect/'+main_model+'/val')
                             if main_model in best_test_pkg.keys():
-                                cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/val/', 
+                                cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/test/', 
                                                            best_test_pkg[main_model]['result'], 
                                                            [best_test_pkg[x]['result'] for x in peer_model[1:]], 
                                                            label_list, main_model, peer_model[1:], 
                                                            target=metric, sort=val_sort, by_peer=sort_model, 
                                                            output_path='static/inspect/'+main_model+'/test')
             # argument filters
+            print('inspect_stream/MATCHING ARGUMENTS')
             args_filter = ['modality', 'dataset', 'split', 'network', 'pretrain_model', 'freeze_point', 'base_lr', 
                            'batch_size', 'momentum', 'l2decay', 'dropout', 'lr_scheduler', 'lr_reduce_ratio', 
                            'step_size', 'last_step', 'patience', 'loss_threshold', 'min_lr', 'clip_len', 
@@ -501,8 +512,8 @@ def inspect_stream():
                 output[name]['args'] = {arg : train_pkg[name]['args'][arg] for arg in args_filter}
                 output[name]['args']['epoch'] = pkg['epoch']
             
-            
-            return render_template('inspect_stream.html', base_meta=base_meta, output=output, base_model=main_model, dataset=base_dataset, split=base_split)
+            print('inspect_stream/READY')
+            return render_template('inspect_stream.html', base_meta=base_meta, output=output, base_model=main_model, dataset=base_dataset, split=base_split, main_test=main_test)
         else:
             for fieldName, errorMessages in form.errors.items():
                 for err in errorMessages:

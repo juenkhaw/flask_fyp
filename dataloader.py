@@ -571,7 +571,7 @@ if __name__ == '__main__':
 #        cv2.imshow('flow2', flow[0, i, :, :, 1])
 #        cv2.waitKey()
 #    cv2.destroyAllWindows()
-    temp = Videoset({'dataset':'UCF-101', 'modality':'rgb', 'split':1, 'is_debug_mode':0, 'debug_mode':'distributed', 
+    temp = Videoset({'dataset':'UCF-101', 'modality':'rgb', 'split':1, 'is_debug_mode':0, 'debug_mode':'none', 
                      'debug_train_size':4, 'clip_len':64, 'resize_h':128, 'resize_w':171, 'crop_h':112, 
                      'crop_w':112, 'is_mean_sub':False, 'is_rand_flip':False, 'debug_test_size':4, 
                      'test_method':'10-clips', 'debug_test_size':4}, 'test')
