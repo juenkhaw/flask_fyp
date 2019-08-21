@@ -17,3 +17,5 @@ static/graph/graph1.html
 *.pyc
 *.pyc
 output.html
+static/vis/preview/test.html
+static/inspect/conv4_rgb/cfm.html

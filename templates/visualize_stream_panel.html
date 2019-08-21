@@ -2,6 +2,59 @@
 {% block content %}
 
 <script>
+	var preview_count = 0;
+	var anim_count = 0;
+	
+	$(document).ready(function() {
+		if("{{ready}}" === "True") {
+			//show images
+			preview_count = 0;
+			$("#input_preview .default_text").hide();
+			$("#input_preview img").show();
+			$("#init_vis").prop("disabled", false);
+			preview_interval = setInterval(anim_preview, 500);
+			
+		} else {
+			$("#input_preview .default_text").show();
+			$("#input_preview img").hide();
+			$("#init_vis").prop("disabled", true);
+		}
+		
+		$("#init_vis").click(function() {
+			$("#init_vis").prop("disabled", true);
+			$("form *").prop("disabled", true);
+			$("#vis_content .default_text").html("Running...");
+			$.ajax({
+				url: '/visualize_panel',
+				type: 'POST',
+				contentType: 'application/json',
+				data: JSON.stringify({update: true}),
+				success: function(response) {
+					if(response) {
+						$("#input_preview, #input_preview_title").hide();
+						$("form *").prop("disabled", false);
+						result_interval = setInterval(anim_result, 500);
+					}
+				}
+			});
+		});
+	});
+	
+	function anim_preview() {
+		if (anim_count == {{clip_len}}) {
+			anim_count = 0;
+		}
+		$("#input_preview img").attr("src", "static/vis/preview/"+anim_count+".jpg");
+		anim_count = anim_count + 1;
+	}
+	
+	function anim_result() {
+		if (preview_count == {{clip_len}}) {
+			preview_count = 0;
+		}
+		$("#vis_content img").attr("src", "static/vis/result/"+preview_count+".jpg");
+		preview_count = preview_count + 1;
+	}
 </script>
 
 <style>
@@ -89,7 +142,19 @@
 	</p>
 	</form>
 	</div>
-	<p class="default_text">No result</p>
+	<p class="title" id="input_preview_title">Input Preview</p>
+	<div class="content" id="input_preview">
+		<p class="default_text">Complete the section above first</p>
+		<img />
+		<p>
+		<button id="init_vis">Visualize</button>
+		</p>
+	</div>
+	<p class="title">Visualization</p>
+	<div class="content" id="vis_content">
+		<img />
+		<p class="default_text">Run visualization at the section above upon confirmation</p>
+	</div>
 </div>
 
 {% endblock %}

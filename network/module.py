@@ -170,6 +170,7 @@ class TemplateNetwork(object):
         # to be appended by user with full list of modules (input to softmax)
         self.net_order = []
         self.endpoints = []
+        self.convlayer = []
         self.lastpoint = lastpoint
         self.inter_process = {}
         self.net = None
@@ -184,6 +185,10 @@ class TemplateNetwork(object):
         """
         self.net_order.append((name, module))
         self.endpoints.append(name)
+        for mod in module.modules():
+            if type(mod) == nn.Conv3d:
+                self.convlayer.append(name)
+                break
         
     def add_inter_process(self, module_name, func):
         """

@@ -70,8 +70,8 @@ class InceptionI3D(TemplateNetwork):
         self.add_module('Logits', Conv3D(1024, num_classes, kernel_size = (1, 1, 1), 	
                                     padding = 'VALID', activation = None, 	
                                     use_BN = False, use_bias = True))
-        self.add_inter_process('Linear', {torch.Tensor.view : {'size' : (-1, num_classes)}})
-        self.add_module('Linear', nn.Linear(num_classes, num_classes))
+        self.add_inter_process('Linear', {torch.Tensor.view : {'size' : (-1, num_classes * 7)}})
+        self.add_module('Linear', nn.Linear(num_classes * 7, num_classes))
         self.add_module('Softmax', nn.Softmax(dim = 1))
         
         # compile into a complete network

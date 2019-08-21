@@ -16,7 +16,7 @@ from glob import glob
 from os import listdir, path, makedirs
 from shutil import copy2
 
-#from flask_fyp import BASE_CONFIG
+from flask_fyp import BASE_CONFIG
 
 #BASE_CONFIG = {
 #"channel": {
@@ -94,7 +94,8 @@ def generate_subbatches(sbs, *tensors):
             subbatches.append([tensors[i]])
     
     return subbatches if len(tensors) > 1 else subbatches[0]
-                
+
+#%%              
 def transform_buffer(buffer, to_display):
     """
     Transform frame/clip/video(multiple clips) matrix to/from tensor and displayable
@@ -123,6 +124,8 @@ def transform_buffer(buffer, to_display):
             return Tensor(buffer.transpose(0, 4, 1, 2, 3))
     else: #error
         return None
+    
+#%%
                 
 def temporal_crop(buffer_len, clip_len):
     """
@@ -164,7 +167,7 @@ def temporal_center_crop(buffer_len, clip_len):
     end_index = start_index + clip_len
     
     return start_index, end_index
-
+#%%
 def temporal_uniform_crop(buffer_len, clip_len, clips_per_video):
     """
     Uniformly crops the video into N clips over temporal dimension
@@ -191,7 +194,7 @@ def temporal_uniform_crop(buffer_len, clip_len, clips_per_video):
     indices.append((buffer_len - clip_len, buffer_len))
     
     return indices
-
+#%%
 def spatial_crop(buffer_size, clip_size):
     """
     Randomly crops original video frames over spatial dimension
@@ -272,6 +275,7 @@ def normalize_buffer(buffer):
     buffer = (buffer - 128) / 128
     return buffer
 
+#%%
 def denormalize_buffer(buffer):
     """
     Denormalizes intensity values of input buffer frames
@@ -279,6 +283,7 @@ def denormalize_buffer(buffer):
     """
     buffer = (buffer * 128 + 128).astype(np.uint8) 
     return buffer
+#%%
 
 def flow_mean_sub(buffer):
     """
@@ -423,7 +428,6 @@ class Videoset(Dataset):
                 # read in rgb frames
                 if channel_count == 3:
                     buffer_frame.append(cv2.imread(path_content[0][frame2]))
-                    buffer_frame[0] = cv2.cvtColor(buffer_frame[0], cv2.COLOR_BGR2RGB)
                 # read in flow maps
                 else:
                     buffer_frame.append(cv2.imread(path_content[0][frame2], cv2.IMREAD_GRAYSCALE))
@@ -516,7 +520,7 @@ class Videoset(Dataset):
                 current_sample = glob(path.join(self._base_dir, self._X_path[index][0], '*.jpg'))[0]
                 copy2(current_sample, path.join(save_path,self._label_list[i]+'.jpg'))
                 index += self._Y_freq[i]
-                
+#%%
 def read_frames_for_visualization(dataset_path, video_name, clip_len, spat_w, spat_h, mean_sub = True):
     
     # read path
@@ -552,27 +556,27 @@ def read_frames_for_visualization(dataset_path, video_name, clip_len, spat_w, sp
     rgb_frame = buffer_frames[0]
     flow_frame = np.concatenate((buffer_frames[1], buffer_frames[2]), axis = 4)
     
-    return transform_buffer(rgb_frame, False), transform_buffer(flow_frame, False)
-
+    return rgb_frame, flow_frame
+#%%
 if __name__ == '__main__':
-    rgb, flow = read_frames_for_visualization('C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101', 
-                                  'v_ApplyEyeMakeup_g08_c01', 8, 112, 112)
-    rgb = transform_buffer(rgb, True)
-    flow = transform_buffer(flow, True)
-    rgb = denormalize_buffer(rgb)
-    flow = denormalize_buffer(flow)
-    for i in range(8):
-        cv2.imshow('rgb', rgb[0, i])
-        cv2.imshow('flow1', flow[0, i, :, :, 0])
-        cv2.imshow('flow2', flow[0, i, :, :, 1])
-        cv2.waitKey()
-    cv2.destroyAllWindows()
-#    temp = Videoset({'dataset':'UCF-101', 'modality':'rgb', 'split':1, 'is_debug_mode':0, 'debug_mode':'distributed', 
-#                     'debug_train_size':4, 'clip_len':8, 'resize_h':128, 'resize_w':171, 'crop_h':112, 
-#                     'crop_w':112, 'is_mean_sub':False, 'is_rand_flip':False, 'debug_test_size':4, 
-#                     'test_method':'10-crops', 'debug_test_size':4}, 'test')
+#    rgb, flow = read_frames_for_visualization('C:\\Users\\Juen\\Desktop\\Gabumon\\Blackhole\\UTAR\\Subjects\\FYP\\dataset\\UCF-101', 
+#                                  'v_ApplyEyeMakeup_g08_c01', 8, 112, 112)
+#    rgb = transform_buffer(rgb, True)
+#    flow = transform_buffer(flow, True)
+#    rgb = denormalize_buffer(rgb)
+#    flow = denormalize_buffer(flow)
+#    for i in range(8):
+#        cv2.imshow('rgb', rgb[0, i])
+#        cv2.imshow('flow1', flow[0, i, :, :, 0])
+#        cv2.imshow('flow2', flow[0, i, :, :, 1])
+#        cv2.waitKey()
+#    cv2.destroyAllWindows()
+    temp = Videoset({'dataset':'UCF-101', 'modality':'rgb', 'split':1, 'is_debug_mode':0, 'debug_mode':'distributed', 
+                     'debug_train_size':4, 'clip_len':64, 'resize_h':128, 'resize_w':171, 'crop_h':112, 
+                     'crop_w':112, 'is_mean_sub':False, 'is_rand_flip':False, 'debug_test_size':4, 
+                     'test_method':'10-clips', 'debug_test_size':4}, 'test')
 #    #temp._read_first_frame_forach_label()
-#    a = temp.__getitem__(33)
+    a = temp.__getitem__(2144)
 #    at = transform_buffer(a, True)
 #    for i in range(8):
 #        #cv2.imshow('t', cv2.cvtColor(at[4, i], cv2.COLOR_RGB2BGR))

@@ -14,6 +14,7 @@ from threading import Thread
 from os import listdir, path
 from glob import glob
 from time import sleep
+from json import loads
 
 from .forms import TrainStreamForm, num_range, SelectField, ResumeStreamForm, TestStreamForm, InspectStreamForm, VisualizeStreamForm1, VisualizeStreamForm2
 from decimal import Decimal
@@ -522,13 +523,16 @@ def inspect_stream():
 @app.route('/visualize_stream', methods=['GET', 'POST'])
 def visualize_stream():
     req = request.json
-    print('inspect_stream/request.json', req)
+    print('visualize_stream/request.json', req)
     
     if (req == {} or req == None):
         
         if 'sv' not in globals():
             global sv
             sv = None
+        else:
+            if sv != None:
+                sv.is_ready = False
         
         base_meta['title'] = 'visualize_stream'
         base_meta['header'] = 'Stream Visualization'
@@ -540,17 +544,60 @@ def visualize_stream():
             sv = StreamVis(form_to_dict(form))
             base_meta['title'] = 'visualize_stream'
             base_meta['header'] = 'Stream Visualization - ' + form.vis_model.data
-            form = VisualizeStreamForm2(sv.args['clip_len'], 
-                                        path.join(sv.dataset_path, BASE_CONFIG['dataset'][sv.args['dataset']]['label_index_txt']),
-                                        sv.model.endpoints)
-            return render_template('visualize_stream_panel.html', base_meta = base_meta, form = form, args = sv.args)
+            return redirect(url_for('visualize_panel'))
+
         else:
             for fieldName, errorMessages in form.errors.items():
                 for err in errorMessages:
                     print('visualize_outer/form_failed',fieldName, err)
                     
+                    
         return render_template('visualize_stream_setup.html', base_meta = base_meta, form = form)
         
     else:
         return ''
+
+@app.route('/visualize_panel', methods=['GET', 'POST'])
+def visualize_panel():
+    req = request.json
+    print('visualize_panel/request.json', req)
+    
+    if (req == {} or req == None):
+        if 'sv' not in globals():
+            return index()
         
+        else:
+            if sv == None:
+                return index()
+            else:
+                form = VisualizeStreamForm2(sv.args['clip_len'], 
+                                            path.join(sv.dataset_path, BASE_CONFIG['dataset'][sv.args['dataset']]['label_index_txt']),
+                                            sv.model.convlayer)
+                
+                if form.validate_on_submit():
+                    sv.register_args(form_to_dict(form), form.target_class.choices)
+                    # read input first
+                    sv.fetch_input()
+                    return render_template('visualize_stream_panel.html', base_meta = base_meta, form = form, args=sv.args, 
+                                           ready=True, clip_len=form.clip_len.data)
+                
+                else:
+                    sv.is_ready = False
+                    for fieldName, errorMessages in form.errors.items():
+                        for err in errorMessages:
+                            print('visualize_outer/form_failed',fieldName, err)    
+                
+                return render_template('visualize_stream_panel.html', base_meta = base_meta, form = form, args=sv.args, 
+                                       ready=False, clip_len=0)
+            
+    else:
+        if 'update' in req.keys():
+            if sv.args['modality'] == 'rgb':
+                sv.run_visualize_rgb()
+            else:
+                sv.run_visualize_flow()
+            sv.is_ready = False
+            return jsonify({'result': True})
+        
+        else:
+            return ''
