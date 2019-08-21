@@ -8,7 +8,10 @@ from math import ceil
 from glob import glob
 from os import path, makedirs
 
-config = {'scrollZoom' : False, 'displayModeBar' : False}
+config = {
+        'scrollZoom' : False, 
+        'displayModeBar' : 'hover'
+        }
 margin = 30
 right_margin = 0
 legend_font_size = 10
@@ -65,20 +68,21 @@ def main_acc_graph(epoch, train_acc, val_acc, title=''):
             }}
     py.plot(figure, filename='static/graph/main_acc.html', config=config, auto_open = False)
     
-def comparing_graph(current, data, title, yaxis):
+def comparing_graph(current, data, title, yaxis, main_name = 'Current'):
     
     current_pkg = [go.Scatter(
                 x = list(range(1, current['epoch'] + 1)),
                 y = current['output'][title],
-                name = 'Current',
-                showlegend=False
+                name = main_name,
+                showlegend=True
             )]
     compare_pkg = [
                 go.Scatter(
                     x = list(range(1, pkg['epoch'] + 1)), 
                     y = pkg['output'][title], 
                     name = pkg['args']['output_name'],
-                    showlegend = False
+                    showlegend = True,
+                    hoverlabel = {'namelength' : 30}
                 ) for pkg in data
             ]
     current_pkg.extend(compare_pkg)
@@ -94,6 +98,68 @@ def comparing_graph(current, data, title, yaxis):
                     }
             }
     py.plot(figure, filename='static/graph/compare_'+title+'.html', config=config, auto_open = False)
+    
+def comparing_graph2(current, data, title, yaxis, main_name = 'Current'):
+    
+    colors = [
+        '#1f77b4',  # muted blue
+        '#ff7f0e',  # safety orange
+        '#2ca02c',  # cooked asparagus green
+        '#d62728',  # brick red
+        '#9467bd'  # muted purple
+    ]
+    
+    current_pkg = [go.Scatter(
+                x = list(range(1, current['epoch'] + 1)),
+                y = current['output']['train_'+yaxis],
+                name = 'train_' + main_name,
+                showlegend=True,
+                hoverlabel = {'namelength' : 30},
+                line = dict(color=colors[0])
+            ), go.Scatter(
+                x = list(range(1, current['epoch'] + 1)),
+                y = current['output']['val_'+yaxis],
+                name = 'val_' + main_name,
+                showlegend=True,
+                hoverlabel = {'namelength' : 30},
+                line = dict(color=colors[0], dash='dash')
+            )]
+    
+    compare_pkg1 = [
+                go.Scatter(
+                    x = list(range(1, pkg['epoch'] + 1)), 
+                    y = pkg['output']['train_'+yaxis], 
+                    name = 'train_' + pkg['args']['output_name'],
+                    showlegend = True,
+                    hoverlabel = {'namelength' : 30},
+                    line = dict(color=colors[i + 1])
+                ) for i, pkg in enumerate(data)
+            ]
+    compare_pkg2 = [
+                go.Scatter(
+                    x = list(range(1, pkg['epoch'] + 1)), 
+                    y = pkg['output']['val_'+yaxis], 
+                    name = 'val_' + pkg['args']['output_name'],
+                    showlegend = True,
+                    hoverlabel = {'namelength' : 30},
+                    line = dict(color=colors[i + 1], dash='dash')
+                ) for i, pkg in enumerate(data)
+            ]
+    
+    current_pkg.extend(compare_pkg1)
+    current_pkg.extend(compare_pkg2)
+    
+    figure = {'data': current_pkg, 
+            'layout': {
+                    'legend':{'x':legend_x, 'y':legend_y}, 
+                    'margin':{'l':margin,'r':margin,'t':margin,'b':margin}, 
+                    'font':{'size':legend_font_size},
+                    'title':{'text':title},
+                    'xaxis':{'title':{'text':'epoch'}},
+                    'yaxis':{'title':{'text':yaxis}}
+                    }
+            }
+    py.plot(figure, filename='static/graph/compare_'+yaxis+'.html', config=config, auto_open = False)
     
 # blue green red
 colors = [(255, 165, 109), (109, 255, 140), (119, 119, 255)]

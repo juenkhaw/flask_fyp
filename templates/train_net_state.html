@@ -54,11 +54,15 @@
                             $("#main_loss").load("{{url_for('static', filename='graph/main_loss.html')}}")
                             $("#main_acc").load("{{url_for('static', filename='graph/main_acc.html')}}")
                             if(!response.no_compare) {
-                                $("#train_loss, #train_acc, #val_loss, #val_acc").html("Updating");
-                                $("#train_loss").load("{{url_for('static', filename='graph/compare_train_loss.html')}}")
-                                $("#train_acc").load("{{url_for('static', filename='graph/compare_train_acc.html')}}")
-                                $("#val_loss").load("{{url_for('static', filename='graph/compare_val_loss.html')}}")
-                                $("#val_acc").load("{{url_for('static', filename='graph/compare_val_acc.html')}}")
+                                $("#train_loss, #train_acc, #val_loss, #val_acc, #compare_loss, #compare_acc").html("Updating");
+                                /*
+								$("#train_loss").load("{{url_for('static', filename='graph/compare_train_loss.html')}}")
+								$("#train_acc").load("{{url_for('static', filename='graph/compare_train_acc.html')}}")
+								$("#val_loss").load("{{url_for('static', filename='graph/compare_val_loss.html')}}")
+								$("#val_acc").load("{{url_for('static', filename='graph/compare_val_acc.html')}}")
+								*/
+								$("#compare_loss").load("{{url_for('static', filename='graph/compare_loss.html')}}")
+								$("#compare_acc").load("{{url_for('static', filename='graph/compare_acc.html')}}")
                             }
 							if(response.no_compare) {
 								$("#compare_state_text").html("No models are selected for comparison").show();
@@ -128,15 +132,7 @@
     .graph {
         margin: auto;
         display: inline-block;
-    }
-
-    #main_loss, #main_acc {
-        width: 480px;
-        height: 300px;
-    }
-
-    #train_loss, #train_acc, #val_loss, #val_acc {
-        width: 480px;
+		width: 480px;
         height: 300px;
     }
 
@@ -215,18 +211,25 @@
     <p class="title">State Comparison</p>
     <div class="content">
         <p id = "compare_state_text" class="default_text">No data available yet</p>
-        <div class="graph" id="train_loss">
-            
-        </div>
-        <div class="graph" id="train_acc">
+        <p class="default_text">No models are selected for comparison</p>
+			<div class="graph" id="compare_loss">
 
-        </div>
-        <div class="graph" id="val_loss">
-            
-        </div>
-        <div class="graph" id="val_acc">
+			</div>
+			<div class="graph" id="compare_acc">
+				
+			</div>
+<!-- 			<div class="graph" id="train_loss">
+				
+			</div>
+			<div class="graph" id="train_acc">
 
-        </div>
+			</div>
+			<div class="graph" id="val_loss">
+				
+			</div>
+			<div class="graph" id="val_acc">
+
+			</div> -->
     </div>
     <p class="title">Class-Specific Validation Scores/Accuracy</p>
     <div class="content">
@@ -244,7 +247,7 @@
             </select>
         </div>
         <p class="default_text">No data available yet</p>
-        <div class="graph" id="val_img">
+        <div id="val_img">
 			<img>
         </div>
     </div>

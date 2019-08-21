@@ -16,11 +16,15 @@
 		if({{len(output.keys())}} > 1) {
 		
 			$(".default_text").hide();
-			$("#train_loss, #train_acc, #val_loss, #val_acc").html("Updating");
+			$("#train_loss, #train_acc, #val_loss, #val_acc, #compare_loss, #compare_acc").html("Updating");
+			/*
 			$("#train_loss").load("{{url_for('static', filename='graph/compare_train_loss.html')}}")
 			$("#train_acc").load("{{url_for('static', filename='graph/compare_train_acc.html')}}")
 			$("#val_loss").load("{{url_for('static', filename='graph/compare_val_loss.html')}}")
 			$("#val_acc").load("{{url_for('static', filename='graph/compare_val_acc.html')}}")
+			*/
+			$("#compare_loss").load("{{url_for('static', filename='graph/compare_loss.html')}}")
+			$("#compare_acc").load("{{url_for('static', filename='graph/compare_acc.html')}}")
 			
 		} else {
 			$("#val_sort_model").prop("disabled", true);
@@ -136,18 +140,10 @@
 	.graph {
         margin: auto;
         display: inline-block;
-    }
-
-    #main_loss, #main_acc {
-        width: 480px;
+		width: 480px;
         height: 300px;
     }
 
-    #train_loss, #train_acc, #val_loss, #val_acc {
-        width: 480px;
-        height: 300px;
-    }
-	
 	.default_text {
         color: red;
         text-align: center;
@@ -234,7 +230,7 @@
             </select>&Tab;
 			<button id="test_submit">Update</button>
         </div>
-		<div class="graph" id="test_img">
+		<div id="test_img">
 			<img>
         </div>
 	</div>
@@ -249,7 +245,13 @@
 		</div>
 		<div id="compare_graph">
 			<p class="default_text">No models are selected for comparison</p>
-			<div class="graph" id="train_loss">
+			<div class="graph" id="compare_loss">
+
+			</div>
+			<div class="graph" id="compare_acc">
+				
+			</div>
+<!-- 			<div class="graph" id="train_loss">
 				
 			</div>
 			<div class="graph" id="train_acc">
@@ -260,7 +262,7 @@
 			</div>
 			<div class="graph" id="val_acc">
 
-			</div>
+			</div> -->
 		</div>
 	</div>
 	
@@ -293,7 +295,7 @@
             </select>&Tab;
 			<button id="val_submit">Update</button>
         </div>
-		<div class="graph" id="val_img">
+		<div id="val_img">
 			<img>
         </div>
 	</div>

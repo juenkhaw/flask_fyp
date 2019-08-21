@@ -157,10 +157,12 @@ def train_stream():
                         main_loss_graph(st.epoch, st.main_output['output']['train_loss'], st.main_output['output']['val_loss'])
                         main_acc_graph(st.epoch, st.main_output['output']['train_acc'], st.main_output['output']['val_acc'])
                         if st.compare != []:
-                            comparing_graph(st.main_output, st.compare, 'train_loss', 'loss')
-                            comparing_graph(st.main_output, st.compare, 'val_loss', 'loss')
-                            comparing_graph(st.main_output, st.compare, 'train_acc', 'accuracy')
-                            comparing_graph(st.main_output, st.compare, 'val_acc', 'accuracy')
+                            comparing_graph2(st.main_output, st.compare, 'Loss', 'loss')
+                            comparing_graph2(st.main_output, st.compare, 'Accuracy', 'acc')
+#                            comparing_graph(st.main_output, st.compare, 'train_loss', 'loss')
+#                            comparing_graph(st.main_output, st.compare, 'val_loss', 'loss')
+#                            comparing_graph(st.main_output, st.compare, 'train_acc', 'accuracy')
+#                            comparing_graph(st.main_output, st.compare, 'val_acc', 'accuracy')
                         
                     if st.update['complete']:
                         st.update['complete'] = False
@@ -260,10 +262,12 @@ def resume_stream():
                         main_loss_graph(st.epoch, st.main_output['output']['train_loss'], st.main_output['output']['val_loss'])
                         main_acc_graph(st.epoch, st.main_output['output']['train_acc'], st.main_output['output']['val_acc'])
                         if st.compare != []:
-                            comparing_graph(st.main_output, st.compare, 'train_loss', 'loss')
-                            comparing_graph(st.main_output, st.compare, 'val_loss', 'loss')
-                            comparing_graph(st.main_output, st.compare, 'train_acc', 'accuracy')
-                            comparing_graph(st.main_output, st.compare, 'val_acc', 'accuracy')
+                            comparing_graph2(st.main_output, st.compare, 'Loss', 'loss')
+                            comparing_graph2(st.main_output, st.compare, 'Accuracy', 'acc')
+#                            comparing_graph(st.main_output, st.compare, 'train_loss', 'loss')
+#                            comparing_graph(st.main_output, st.compare, 'val_loss', 'loss')
+#                            comparing_graph(st.main_output, st.compare, 'train_acc', 'accuracy')
+#                            comparing_graph(st.main_output, st.compare, 'val_acc', 'accuracy')
                         
                     if st.update['complete']:
                         st.update['complete'] = False
@@ -459,10 +463,12 @@ def inspect_stream():
             main_loss_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_loss'], train_pkg[main_model]['output']['val_loss'], title=main_model)
             main_acc_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_acc'], train_pkg[main_model]['output']['val_acc'], title=main_model)
             if len(peer_model) > 1: # if there is any comparison
-                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_loss', 'loss')
-                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'val_loss', 'loss')
-                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_acc', 'accuracy')
-                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'val_acc', 'accuracy')
+                comparing_graph2(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Loss', 'loss', main_model+'*')
+                comparing_graph2(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Accuracy', 'acc', main_model+'*')
+#                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_loss', 'loss', main_model+'*')
+#                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'val_loss', 'loss', main_model+'*')
+#                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_acc', 'accuracy', main_model+'*')
+#                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'val_acc', 'accuracy', main_model+'*')
             
             # validation plot
             print('inspect_stream/PLOTTING VALIDATION/TESTING STATS')
