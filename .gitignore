@@ -1,16 +1,7 @@
 
 *.tar
-static/graph/compare_train_acc.html
-static/graph/compare_train_loss.html
-static/graph/compare_val_acc.html
-static/graph/compare_val_loss.html
-static/graph/graph.py
-static/graph/graph1.html
-static/graph/graph2.html
-static/graph/main_acc.html
-static/graph/main_loss.html
-static/graph/graph1.html
-static/graph/graph1.html
+static/*
+output/*
 *.jpg
 *.db
 *.pyc

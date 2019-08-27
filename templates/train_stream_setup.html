@@ -5,6 +5,11 @@
     var reduce_by_step_default = [10, -1]
     var reduce_on_plateau_id = ["#{{form.patience.id}}", "#{{form.loss_threshold.id}}", "#{{form.min_lr.id}}"]
     var reduce_on_plateau_default = [10, 0.0001, 0]
+	
+	var resume_disable_key = ['base_lr', 'dataset', 'debug_mode', 'is_debug_mode', 'lr_scheduler', 'modality', 
+								'network', 'pretrain_model', 'split_select', 'test_method']
+								
+	//var remove_after_flag = false;
 
     function update_form(target_field, req_json) {
         $.ajax({
@@ -66,19 +71,75 @@
             $("#{{form.debug_val_size.id}}").val(32);
         }
     }
+	
+	function update_resume_form() {
+		
+		var model = $("#{{form.half_model.id}}").val();
+
+		$("form *").prop("disabled", true);
+		$.ajax({
+			url: "/train_stream",
+			type: "POST",
+			contentType: "application/json",
+			data: JSON.stringify({model: model}),
+			success: function(response) {
+				if(model === "") {
+					$("#pkg_details").html("<span style='color: red;'>No data available</span>");
+					$("#{{form.epoch.id}}").html(response.form_epoch);
+					for(var key in resume_disable_key) {
+						$("#"+resume_disable_key[key]).show().next('b').remove();
+					}
+					$("form *").prop("disabled", false);
+				}
+				else {
+					$("form *").prop("disabled", false);
+					// update package details
+					$("#pkg_details").html(response.pkg_html);
+					$("#args").hide();
+					//update form default selection
+					console.log(response.resume_args);
+					$("#{{form.epoch.id}}").html(response.form_epoch);
+					for(var key in response.resume_args) {
+						if(response.resume_args[key] === true || response.resume_args[key] === false) {
+							$("#"+key).prop('checked', response.resume_args[key])
+						} else {
+							$("#"+key).val(response.resume_args[key]);
+						}
+					}
+					update_subbatch_settings();
+					update_debug_option();
+					update_scheduler_settings(response.resume_args[key]);
+										//disbaled those cannot be modified
+					for(var key in resume_disable_key) {
+						//$("#"+resume_disable_key[key]).prop('readonly', true).prop('style', "background:rgb(220, 220, 220)");
+						$("#"+resume_disable_key[key]).hide().next('b').remove();
+						$("#"+resume_disable_key[key]).after("<b>"+response.resume_args[resume_disable_key[key]]+"</b>");
+					}
+					
+					//special case
+					$("#split_select").val(response.resume_args['split']);
+					$("#split_select").hide().next('b').remove();
+					$("#split_select").after("<b>"+response.resume_args['split']+"</b>");
+				}
+			}
+		});
+	}
 
     $(document).ready(function() {
         update_scheduler_settings($("#{{form.lr_scheduler.id}}").children("option:selected").val());
         update_subbatch_settings();
         update_debug_option();
         update_form("#{{form.freeze_point.id}}", JSON.stringify({network: $("#{{form.network.id}}").val()}))
+		update_resume_form();
 		/*update_form("#{{form.output_compare.id}}", 
 				JSON.stringify({dataset: $("#{{form.dataset.id}}").val(), 
 								split: $("#{{form.split.id}}").val()}));*/
 
         $("#{{form.dataset.id}}").change(function() {
-            var opt = $(this).children("option:selected").val();
-            update_form("#{{form.split.id}}", JSON.stringify({dataset: opt}));
+			if ($("#{{form.half_model.id}}").val() === "") {
+				var opt = $(this).children("option:selected").val();
+				update_form("#{{form.split.id}}", JSON.stringify({dataset: opt}));
+			}
         });
 
         $("#{{form.batch_size.id}}").change(function() {
@@ -108,6 +169,10 @@
             update_form("#{{form.freeze_point.id}}", JSON.stringify({network: $(this).val()}))
         });
 		
+		$("#{{form.half_model.id}}").change(function() {
+			update_resume_form();
+		});
+		
 		/*
 		$("#{{form.dataset.id}}, #{{form.split.id}}").change(function() {
 			update_form("#{{form.output_compare.id}}", 
@@ -123,9 +188,83 @@
         margin: auto;
         text-align: center;
     }
+	
+	.details {
+        height: 150px;
+		width: 450px;
+        overflow: auto;
+		margin: auto;
+    }
+	
+	table {
+        border-collapse: collapse;
+        border: 1px black solid;
+    }
+	
+	td, th {
+        border: 1px black solid;
+        padding-right: 5px;
+        padding-left: 5px;
+        font-size: 14px;
+    }
+
+    .decimal {
+        display: block;
+		width: 80px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+	
+	fieldset fieldset {
+		background: rgb(200,200,200);
+	}
+	
+	form > fieldset:nth-child(odd) {
+		background: rgb(220,220,220);
+	}
+	
+	form > fieldset:nth-child(even) {
+		background: rgb(180,180,180);
+	}
+	
+	.hint {
+		font-size: 14px;
+		background: rgb(255, 244, 161);
+		display: block;
+		padding: 10px;
+		width: 80%;
+		margin: auto;
+	}
+	
+	.warning {
+		font-size: 14px;
+		background: rgb(255, 208, 161);
+		display: block;
+		padding: 10px;
+		width: 80%;
+		margin: auto;
+	}
+
 </style>
 <form action="" method="POST" novalidate>
     {{form.hidden_tag()}}
+	<fieldset>
+		<p class="hint">
+			Have a half-trained model ready? <b>Just setup at this section</b> and the rest would be taken care automatically.
+		</p>
+		<legend>Initialize Trainer</legend>
+		<p>
+			{{form.half_model.label}}<br>
+			{{form.half_model}}
+		</p>
+		<p>
+            <label>Package Overview</label>
+            <div id="pkg_details">
+            <span style="color: red;">No data available</span>
+			</div>
+        </p>
+	</fieldset>
     <fieldset>
         <legend>Setup</legend>
     <p>
@@ -172,6 +311,9 @@
     </fieldset>
     <fieldset>
             <legend>Data Preprocessing</legend>
+		<p class="hint">
+			Apply data augmentation techinques to improve your network generalizability!
+		</p>
         <p>
             {{form.clip_len.label}}<span style="color:red">*</span> (random temporal extraction)<br>
             {{form.clip_len(size=5)}}<br>
@@ -223,6 +365,10 @@
         <span style="color: red;">[{{error}}]</span><br>
         {%endfor%}
     </p>
+	<p class="warning">
+		Be sure to <b>uncheck</b> the following item <b>IF</b> your device memory could not accomodate a full-size batch at once.
+		<b>Specify sub-batch size</b> based on your memory size and each full-size batch shall be partitioned into mini-batch.
+	</p>
     <p>
         {{form.is_batch_size}} {{form.is_batch_size.label}}<br>
     </p>
@@ -337,6 +483,10 @@
     </fieldset>
     <fieldset>
         <legend>Debugging</legend>
+		<p class="hint">
+			<b>Enable debugging mode</b> to examine the ability of your network on overfitting small batch of dataset.
+			You do not want to see bugs inside your network implementation only after training for few hours.
+		</p>
         <p>
             {{form.is_debug_mode}} {{form.is_debug_mode.label}}
         </p>

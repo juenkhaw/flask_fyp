@@ -7,6 +7,7 @@ from math import ceil
 
 from glob import glob
 from os import path, makedirs
+from shutil import copy2
 
 config = {
         'scrollZoom' : False, 
@@ -18,7 +19,7 @@ legend_font_size = 10
 legend_x = 1
 legend_y = 1.02
 
-def main_loss_graph(epoch, train_loss, val_loss, title=''):
+def main_loss_graph(epoch, train_loss, val_loss, title='', static_path = 'static/training/', save_path=''):
     
     figure = {'data': [
                 go.Scatter(
@@ -41,9 +42,12 @@ def main_loss_graph(epoch, train_loss, val_loss, title=''):
                    'yaxis':{'title':{'text':'loss'}},
                    'title':{'text':title}
             }}
-    py.plot(figure, filename='static/graph/main_loss.html', config=config, auto_open = False)
+    py.plot(figure, filename=static_path+'main_loss.html', config=config, auto_open = False)
+    if save_path != '':
+        copy2(static_path+'main_loss.html', save_path+'main_loss.html')
+        #py.plot(figure, filename=save_path+'main_loss.html', config=config, auto_open = False)
     
-def main_acc_graph(epoch, train_acc, val_acc, title=''):
+def main_acc_graph(epoch, train_acc, val_acc, title='', static_path = 'static/training/', save_path=''):
     
     figure = {'data': [
                 go.Scatter(
@@ -66,7 +70,10 @@ def main_acc_graph(epoch, train_acc, val_acc, title=''):
                    'yaxis':{'title':{'text':'accuracy'}}, 
                    'title':{'text':title}
             }}
-    py.plot(figure, filename='static/graph/main_acc.html', config=config, auto_open = False)
+    py.plot(figure, filename=static_path+'main_acc.html', config=config, auto_open = False)
+    if save_path != '':
+        copy2(static_path+'main_acc.html', save_path+'main_loss.acc')
+        #py.plot(figure, filename=save_path+'main_acc.html', config=config, auto_open = False)
     
 def comparing_graph(current, data, title, yaxis, main_name = 'Current'):
     
@@ -99,7 +106,8 @@ def comparing_graph(current, data, title, yaxis, main_name = 'Current'):
             }
     py.plot(figure, filename='static/graph/compare_'+title+'.html', config=config, auto_open = False)
     
-def comparing_graph2(current, data, title, yaxis, main_name = 'Current'):
+def comparing_graph2(current, data, title, yaxis, main_name = 'Current', 
+                     static_path = 'static/training/', save_path=''):
     
     colors = [
         '#1f77b4',  # muted blue
@@ -115,14 +123,16 @@ def comparing_graph2(current, data, title, yaxis, main_name = 'Current'):
                 name = 'train_' + main_name,
                 showlegend=True,
                 hoverlabel = {'namelength' : 30},
-                line = dict(color=colors[0])
+                line = dict(color=colors[0]),
+                mode = 'lines'
             ), go.Scatter(
                 x = list(range(1, current['epoch'] + 1)),
                 y = current['output']['val_'+yaxis],
                 name = 'val_' + main_name,
                 showlegend=True,
                 hoverlabel = {'namelength' : 30},
-                line = dict(color=colors[0], dash='dash')
+                line = dict(color=colors[0], dash='dash'),
+                mode = 'lines'
             )]
     
     compare_pkg1 = [
@@ -132,7 +142,8 @@ def comparing_graph2(current, data, title, yaxis, main_name = 'Current'):
                     name = 'train_' + pkg['args']['output_name'],
                     showlegend = True,
                     hoverlabel = {'namelength' : 30},
-                    line = dict(color=colors[i + 1])
+                    line = dict(color=colors[i + 1]),
+                    mode = 'lines'
                 ) for i, pkg in enumerate(data)
             ]
     compare_pkg2 = [
@@ -142,7 +153,8 @@ def comparing_graph2(current, data, title, yaxis, main_name = 'Current'):
                     name = 'val_' + pkg['args']['output_name'],
                     showlegend = True,
                     hoverlabel = {'namelength' : 30},
-                    line = dict(color=colors[i + 1], dash='dash')
+                    line = dict(color=colors[i + 1], dash='dash'),
+                    mode = 'lines'
                 ) for i, pkg in enumerate(data)
             ]
     
@@ -159,12 +171,16 @@ def comparing_graph2(current, data, title, yaxis, main_name = 'Current'):
                     'yaxis':{'title':{'text':yaxis}}
                     }
             }
-    py.plot(figure, filename='static/graph/compare_'+yaxis+'.html', config=config, auto_open = False)
+    py.plot(figure, filename=static_path + 'compare_'+yaxis+'.html', config=config, auto_open = False)
+    if save_path != '':
+        copy2(static_path+'compare_'+yaxis+'.html', save_path+'compare_'+yaxis+'.html')
+        #py.plot(figure, filename=save_path + 'compare_'+yaxis+'.html', config=config, auto_open = False)
     
 # blue green red
 colors = [(255, 165, 109), (109, 255, 140), (119, 119, 255)]
 
-def cv_confusion_matrix(frame_path, cfm, label, target='pred', sort='none', output_path=''):
+def cv_confusion_matrix(frame_path, cfm, label, target='pred', sort='none',
+                        static_path = 'static/', save_path=''):
     """
     cfm: confusion matrix output from stream module
     label: label listing from dataloader
@@ -282,11 +298,13 @@ def cv_confusion_matrix(frame_path, cfm, label, target='pred', sort='none', outp
                                  cv2.FONT_HERSHEY_PLAIN, 0.7, (0, 0, 0))
                     
             np.copyto(output[y : y + item_h, x : x + item_w, :], item)
-    
-    if not path.exists(output_path):
-        makedirs(output_path)
         
-    cv2.imwrite(path.join(output_path, target + '_' + sort + '.jpg'), output)
+    cv2.imwrite(path.join(static_path, target + '_' + sort + '.jpg'), output)
+    if save_path != '':
+        if not path.exists(save_path):
+            makedirs(save_path)
+        copy2(path.join(static_path, target + '_' + sort + '.jpg'), path.join(save_path, target + '_' + sort + '.jpg'))
+        #cv2.imwrite(path.join(save_path, target + '_' + sort + '.jpg'), output)
     #cv2.imwrite('output.jpg', output)
     #cv2.waitKey()
     #cv2.destroyAllWindows()
@@ -294,7 +312,8 @@ def cv_confusion_matrix(frame_path, cfm, label, target='pred', sort='none', outp
 peer_colors = [(3, 186, 252), (120, 248, 255), (186, 252, 3), (242, 131, 229)]
     
 def cv_confusion_matrix_with_peers(frame_path, cfm, peer_cfm, label, base_name, peer_names, 
-                                   target='pred', sort='none', by_peer='none', output_path = ''):
+                                   target='pred', sort='none', by_peer='none',
+                                   static_path = 'static/', save_path=''):
     
     sample_frames = np.array(glob(path.join(frame_path, '*.jpg')))
     ncol = 4
@@ -457,10 +476,12 @@ def cv_confusion_matrix_with_peers(frame_path, cfm, peer_cfm, label, base_name, 
             
             np.copyto(output[y : y + item_h, x : x + item_w, :], item)
             
-    if not path.exists(output_path):
-        makedirs(output_path)
-        
-    cv2.imwrite(path.join(output_path, target + '_' + sort + '_' + by_peer + '.jpg'), output)
+    cv2.imwrite(path.join(static_path, target + '_' + sort + '_' + by_peer + '.jpg'), output)
+    if save_path != '':
+        if not path.exists(save_path):
+            makedirs(save_path)
+        copy2(path.join(static_path, target + '_' + sort + '_' + by_peer + '.jpg'), path.join(save_path, target + '_' + sort + '_' + by_peer + '.jpg'))
+        #cv2.imwrite(path.join(save_path, target + '_' + sort + '_' + by_peer + '.jpg'), output)
     
 def plotly_confusion_matrix(cfm, label, title):
     print('inspect_stream/PREPARING CFM')
@@ -491,8 +512,12 @@ def plotly_confusion_matrix(cfm, label, title):
     fig = go.Figure(data=data, layout=layout)
     #fig.write_image('C:/Users/Juen/Desktop/Gabumon/Blackhole/UTAR/Subjects/FYP/flask_fyp/output.png')
     print('inspect_stream/EXPORTING CFM')
-    if not path.exists('static/inspect/'+title):
-        makedirs('static/inspect/'+title)
-    py.plot(fig, filename='static/inspect/'+title+'/cfm.html', config=config, auto_open=False)
+    if not path.exists('output/benchmark/'+title):
+        makedirs('output/benchmark/'+title)
+    py.plot(fig, filename='static/benchmark/cfm.html', config=config, auto_open=False)
+    if not path.exists('output/benchmark/'+title):
+        makedirs('output/benchmark/'+title)
+    copy2('static/benchmark/cfm.html', 'output/benchmark/'+title+'cfm.html')
+    #py.plot(fig, filename='output/benchmark/'+title+'cfm.html', config=config, auto_open=False)
     print('inspect_stream/CFM DONE')
     

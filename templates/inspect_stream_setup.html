@@ -39,13 +39,41 @@
         margin: auto;
         text-align: center;
     }
+	
+	fieldset fieldset {
+		background: rgb(200,200,200);
+	}
+	
+	form > fieldset:nth-child(odd) {
+		background: rgb(220,220,220);
+	}
+	
+	form > fieldset:nth-child(even) {
+		background: rgb(180,180,180);
+	}
+	
+	.hint {
+		font-size: 14px;
+		background: rgb(255, 244, 161);
+		display: block;
+		padding: 10px;
+		width: 80%;
+		margin: auto;
+	}
+	
 </style>
 
 <form action="" method="POST" novalidate>
     {{form.hidden_tag()}}
 	<fieldset>
         <legend>Choose Models</legend>
-		 <p>
+		
+		<p class="hint">
+			Select a benchmarking model as a standard model, compare with its peer models and observe
+			the performance difference between the benchmarking model and the others.
+		</p>
+		
+		<p>
             {{form.main_model.label}}<span style="color:red">*</span><br>
             {{form.main_model}}<br>
             {%for error in form.main_model.errors%}

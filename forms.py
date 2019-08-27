@@ -57,6 +57,9 @@ class TrainStreamForm(FlaskForm):
     _gpu_names = []
     _split_choices = []
     
+    # resume training
+    half_model = SelectField(u'Select model to start training', validators=[])
+    
     # basic setup
     modality = SelectField(u'Modality', choices = [('rgb','RGB'), ('flow','FLOW')], validators=[InputRequired()])
     dataset = SelectField(u'Video Dataset', choices = [(x, str(x)) for x in list(BASE_CONFIG['dataset'].keys())], validators=[InputRequired()])
@@ -122,15 +125,21 @@ class TrainStreamForm(FlaskForm):
         self.split.choices = [(x, x) for x in list(range(1, BASE_CONFIG['dataset'][first_dataset]['split'] + 1))]
         
         self.pretrain_model.choices = [('none', 'None')]
-        self.pretrain_model.choices.extend([(x, x) for x in os.listdir('pretrained') if '.pth.tar' in x])
+        self.pretrain_model.choices.extend([(x, x.split('.')[0]) for x in os.listdir('pretrained') if '.pth.tar' in x])
         
         #self.output_compare.choices = [(x, x) for x in os.listdir('output/stream/training') if '.pth.tar' in x]
-        self.output_compare.choices = [(x,x) for x in glob.glob(r'output\stream\**\training\*.pth.tar', recursive=True)]
+        self.output_compare.choices = [(x,'-'.join([x.split('.')[0].split('\\')[i] for i in [2, 3, 5]]))
+            for x in glob.glob(r'output\stream\**\training\*.pth.tar', recursive=True)]
         
         self.freeze_point.choices = [('none', 'None')]
         for net in BASE_CONFIG['network'].keys():
             self.freeze_point.choices.extend([(x, x) for x in BASE_CONFIG['network'][net]['endpoint']])
-    
+            
+        self.half_model.choices = [('', 'Start a new one')]
+        # making sure the state and output files are all both existed for the models
+        self.half_model.choices.extend([(x,'-'.join([x.split('.')[0].split('\\')[i] for i in [2, 3, 5]]))
+            for x in glob.glob(r'output\stream\**\training\*.pth.tar', recursive=True)])
+            
 class ResumeStreamForm(FlaskForm):
     
     # basic setup
@@ -167,13 +176,13 @@ class TestStreamForm(FlaskForm):
     # basic setup
     full_model = SelectField(u'Select Model', validators=[InputRequired(), validate_empty_select])
     test_method = SelectField(u'Testing Method', choices=[('10-clips', '10-clips evenly distributed across video'), 
-                                                          ('10-crops', '10-crops on frames at the middle of video')], 
+                                                          ('10-crops', '10-crops on each frames from each of 10 clips')], 
                                 validators=[InputRequired()])
     device = SelectField(u'Device', choices = [], validators=[InputRequired()])
     
     # testing batch settings
     clip_len = IntegerField(u'Testing Clip Length', validators=[InputRequired(), num_range(min = 1)])
-    test_batch_size = IntegerField(u'Testing Batch Size (number of samples with 10 clips each)', validators=[InputRequired(), num_range(min = 1)], default = 1)
+    test_batch_size = IntegerField(u'Testing Batch Size', validators=[InputRequired(), num_range(min = 1)], default = 1)
     test_subbatch_size = IntegerField(u'Subbatch Size (number of clips per f-prop)', validators=[InputRequired(), num_range(min = 1, max = 320, dependant=[None, '10x of test batch size'])], default = 10)
     
     # debugging mode
@@ -188,7 +197,8 @@ class TestStreamForm(FlaskForm):
         
         self.full_model.choices = [('', '')]
         # making sure the state and output files are all both existed for the models
-        self.full_model.choices.extend([(x, x) for x in glob.glob(r'output\stream\**\training\*.pth.tar', recursive=True)])
+        self.full_model.choices.extend([(x,'-'.join([x.split('.')[0].split('\\')[i] for i in [2, 3, 5]])) 
+            for x in glob.glob(r'output\stream\**\training\*.pth.tar', recursive=True)])
         
         self._gpu_names = [('cuda:'+str(i), 'CUDA:'+str(i)+' '+gpu_names[i]) for i in range(len(gpu_names))]
         self._gpu_names.extend([('cpu', 'CPU')])
@@ -197,17 +207,18 @@ class TestStreamForm(FlaskForm):
 class InspectStreamForm(FlaskForm):
     
     # basic setup
-    main_model = SelectField(u'Base Model', validators=[InputRequired(), validate_empty_select])
-    model_compare = SelectMultipleField(u'Models Comparison (limit to 4)', validators=[selection_limit(4)])
+    main_model = SelectField(u'Benchmarking Model', validators=[InputRequired(), validate_empty_select])
+    model_compare = SelectMultipleField(u'Peer Models for Comparison (limit to 4)', validators=[selection_limit(4)])
     
-    submit = SubmitField('Inspect')
+    submit = SubmitField('Compute Result')
     
     def __init__(self):
         super(InspectStreamForm, self).__init__()
         
         self.main_model.choices = [('', '')]
         # making sure the state and output files are all both existed for the models
-        self.main_model.choices.extend([(x, x) for x in glob.glob('output\\stream\\**\\training\\*.pth.tar', recursive=True)])
+        self.main_model.choices.extend([(x,'-'.join([x.split('.')[0].split('\\')[i] for i in [2, 3, 5]]))
+            for x in glob.glob('output\\stream\\**\\training\\*.pth.tar', recursive=True)])
         
         self.model_compare.choices = self.main_model.choices[1:]
         
@@ -223,7 +234,8 @@ class VisualizeStreamForm1(FlaskForm):
         super(VisualizeStreamForm1, self).__init__()
         
         self.vis_model.choices = [('', '')]
-        self.vis_model.choices.extend([(x, x) for x in glob.glob('output\\stream\\**\\training\\*.pth.tar', recursive=True)])
+        self.vis_model.choices.extend([(x,'-'.join([x.split('.')[0].split('\\')[i] for i in [2, 3, 5]]))
+            for x in glob.glob('output\\stream\\**\\training\\*.pth.tar', recursive=True)])
         
         self.device.choices = [('cuda:'+str(i), 'CUDA:'+str(i)+' '+gpu_names[i]) for i in range(len(gpu_names))]
         self.device.choices.extend([('cpu', 'CPU')])

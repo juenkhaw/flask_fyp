@@ -369,7 +369,8 @@ class Videoset(Dataset):
         # count on occurence of each label
         self._Y_freq = np.bincount(self._Y)
         
-        self._read_first_frame_forach_label()
+        if self._mode in ['val', 'test']:
+            self._read_first_frame_forach_label()
             
     def __getitem__(self, index):
         
@@ -517,7 +518,10 @@ class Videoset(Dataset):
                 continue
             else:
                 #print(i)
-                current_sample = glob(path.join(self._base_dir, self._X_path[index][0], '*.jpg'))[0]
+                if self._args['modality'] == 'rgb':
+                    current_sample = glob(path.join(self._base_dir, self._X_path[index][0], '*.jpg'))[0]
+                else:
+                    current_sample = glob(path.join(self._base_dir, '..', 'rgb', self._X_path[index][0].split('\\')[-1], '*.jpg'))[0]
                 copy2(current_sample, path.join(save_path,self._label_list[i]+'.jpg'))
                 index += self._Y_freq[i]
 #%%

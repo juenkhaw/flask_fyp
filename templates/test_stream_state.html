@@ -2,7 +2,6 @@
 {% block content %}
 
 <script>
-	var val_url = "static/stream_val_result/{{st.args['dataset']}}/split{{st.args['split']}}/"
 	
 	$(document).ready(function() {
         //check_update();
@@ -12,8 +11,8 @@
 			$("#val_form").parent().html("<p style='color:red; text-align:center'>Validation is not available</p>");
 		} 
 		
-		$("#main_loss").load("{{url_for('static', filename='graph/main_loss.html')}}")
-        $("#main_acc").load("{{url_for('static', filename='graph/main_acc.html')}}")
+		$("#main_loss").load("{{url_for('static', filename='testing/main_loss.html')}}")
+        $("#main_acc").load("{{url_for('static', filename='testing/main_acc.html')}}")
 		update_val_img();
 		
         $("#val_type, #val_sort").change(function() {
@@ -42,6 +41,9 @@
                             clearInterval(interval);
                             $("#progress_status").html('<b>Completed</b>');
                             //redirect to inspect stream if possible
+							if(confirm("Testing is completed. Return to Homepage?")) {
+								window.href = "{{url_for('index')}}";
+							}
                         }
                     }
                 }
@@ -52,12 +54,8 @@
         var metric = $("#val_type").val();
         var sort = $("#val_sort").val();
         var filename = metric + '_' + sort + '.jpg';
-        var folder = "{{st.args['output_name']}}";
-        if(folder === "") {
-            folder = "anonymous";
-        }
 		d = new Date();
-		$("#val_img img").removeAttr("src").attr("src", val_url+folder+"/"+filename+"?"+d.getTime());
+		$("#val_img img").removeAttr("src").attr("src", "static/testing/"+filename+"?"+d.getTime());
         //$("#val_img").html("<img src='static/stream_val_result/"+folder+"/"+filename+"'>");
     }
 </script>
@@ -156,7 +154,7 @@
                     <th>Parameter</th>
                 </thead>
             <tbody>
-            {% for k, v in st.args.items() %}
+            {% for k, v in p_args.items() %}
             <tr>
                 <td>{{k}}</td>
                 <td>{{v}}</td>

@@ -231,7 +231,7 @@ class R2P1D34Net(TemplateNetwork):
     
 if __name__ == '__main__':
     device = torch.device('cuda:0')
-    model = R2P1D34Net(device, 101, 3, endpoint=['Linear', 'Softmax'])
+    model = R2P1D34Net(device, 101, 2, endpoint=['Linear', 'Softmax'])
     #x = torch.randn((1, 2, 8, 112, 112)).to(device)
     #y = model.forward(x)
     

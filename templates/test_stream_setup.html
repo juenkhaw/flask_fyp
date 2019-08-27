@@ -58,14 +58,18 @@
         margin: auto;
         text-align: center;
     }
+	
+	#pkg_details {
+		text-align: center;
+	}
 
     .details {
         height: 150px;
         overflow: auto;
+		display: inline-block;
     }
 
     #args {
-        float: left;
         margin-right: 20px;
     }
 
@@ -92,11 +96,45 @@
 	#args, #training {
 		max-width: 50%;
 	}
+	
+	fieldset fieldset {
+		background: rgb(200,200,200);
+	}
+	
+	form > fieldset:nth-child(odd) {
+		background: rgb(220,220,220);
+	}
+	
+	form > fieldset:nth-child(even) {
+		background: rgb(180,180,180);
+	}
+	
+	.hint {
+		font-size: 14px;
+		background: rgb(255, 244, 161);
+		display: block;
+		padding: 10px;
+		width: 80%;
+		margin: auto;
+	}
+	
+	.warning {
+		font-size: 14px;
+		background: rgb(255, 208, 161);
+		display: block;
+		padding: 10px;
+		width: 80%;
+		margin: auto;
+	}
+	
 </style>
 <form action="" method="POST" novalidate>
     {{form.hidden_tag()}}
     <fieldset>
         <legend>Setup</legend>
+		<p class="hint">
+			Evaluate your models on test set with common methods: <b>10-clips and 10-crops</b>
+		</p>
         <p>
             {{form.full_model.label}}<span style="color:red">*</span><br>
             {{form.full_model}} <br>
@@ -121,6 +159,12 @@
     </fieldset>
     <fieldset>
         <legend>Testing Batch</legend>
+		<p class="warning">
+			<b>BEWARE</b> that <b>10-clips</b> would generate <b>10 clips</b> 
+			while <b>10-crops</b> would generate <b>100 clips</b>
+			for each testing video respectively. Be sure not to flood your 
+			device memory.
+		</p>
         <p>
             {{form.clip_len.label}}<span style="color:red">*</span><br>
             {{form.clip_len(size=5)}}<br>
@@ -147,6 +191,9 @@
     </fieldset>
     <fieldset>
         <legend>Debugging</legend>
+		<p class="hint">
+			Run on small batch of testing set before going on to full batch
+		</p>
         <p>
             {{form.is_debug_mode}} {{form.is_debug_mode.label}}
         </p>

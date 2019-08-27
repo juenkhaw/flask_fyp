@@ -13,11 +13,36 @@
 		padding: 5px;
     }
 	
+	fieldset fieldset {
+		background: rgb(200,200,200);
+	}
+	
+	form > fieldset:nth-child(odd) {
+		background: rgb(220,220,220);
+	}
+	
+	form > fieldset:nth-child(even) {
+		background: rgb(180,180,180);
+	}
+	
+	.hint {
+		font-size: 14px;
+		background: rgb(255, 244, 161);
+		display: block;
+		padding: 10px;
+		width: 80%;
+		margin: auto;
+	}
 	
 </style>
 
 <form action="" method="POST" novalidate>
     {{form.hidden_tag()}}
+	
+	<p class="hint">
+		Visualize your models using <b>Guided Backpropagation and GradCAM</b>! Take a look at how your 
+		model recognize a specific action from a clip.
+	</p>
 	
 	<p>
 		{{form.vis_model.label}}<span style="color:red">*</span><br>

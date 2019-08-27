@@ -9,7 +9,7 @@ import numpy as np
 from os import path, makedirs
 
 from dataloader import Videoset, generate_subbatches
-from graph import cv_confusion_matrix
+from graph import cv_confusion_matrix, main_loss_graph, main_acc_graph
 from . import BASE_CONFIG
 
 #BASE_CONFIG = {
@@ -237,6 +237,16 @@ class StreamTrainer(object):
         self.load_evaluating_model()
         self.load_test_dataset()
         
+        # prepare graph and cfm 
+        main_loss_graph(self.main_output['epoch'], self.main_output['output']['train_loss'], self.main_output['output']['val_loss'], static_path='static/testing/')
+        main_acc_graph(self.main_output['epoch'], self.main_output['output']['train_acc'], self.main_output['output']['val_acc'], static_path='static/testing/')
+        print('static/'+self.args['dataset']+'/split'+str(self.args['split'])+'/test/')
+        for metric in ['pred', 'score']:
+            for sort in ['none', 'desc', 'asc']:
+                cv_confusion_matrix('static/'+self.args['dataset']+'/split'+str(self.args['split'])+'/test/', 
+                                    self.main_output['output']['val_result'], self.dataloaders.dataset._label_list, target=metric, sort=sort,
+                                    static_path = 'static/testing/', save_path='')
+        
         # put model into evaluation mode
         self.model.net.eval()
         
@@ -246,12 +256,11 @@ class StreamTrainer(object):
         
     def save_cfm(self, data, mode, dataloader):
         read_path = path.join('static',self.args['dataset'],'split'+str(self.args['split']),mode)
-        output_path = path.join('static', 'stream_val_result', self.args['dataset'], 'split'+str(self.args['split']), 'anonymous' if self.args['output_name'] == '' else self.args['output_name'])
         for metric in ['pred', 'score']:
             for sort in ['none', 'asc', 'desc']:
                 cv_confusion_matrix(read_path, data, 
                                     dataloader.dataset._label_list, target = metric, sort = sort, 
-                                    output_path = output_path)
+                                    save_path = '', static_path='static/training/')
     
     def save_main_output(self, _path, **contents):
         self.main_output = contents
@@ -309,6 +318,7 @@ class StreamTrainer(object):
             self.elapsed = self.main_output['elapsed']
             
         timer = {'total':0, 'train':0}
+        lr = None
         
         for self.epoch in range(epoch, self.args['epoch'] + 1):
             timer['total'] = time()

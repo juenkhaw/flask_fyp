@@ -1,18 +1,49 @@
 {% extends "base.html" %}
 {% block content %}
-<script>
 
-</script>
-<h2>Stream Networks</h2>
+<style>
+	ul {
+		text-align: center;
+		list-style: none;
+	}
+	
+	a {
+		margin: 10px;
+		width: 60%;
+	}
+
+	a:link, a:visited {
+	  background-color: rgb(156, 86, 61);
+	  color: white;
+	  padding: 14px 25px;
+	  text-align: left; 
+	  text-decoration: none;
+	  display: inline-block;
+	}
+
+	a:hover, a:active {
+	  background-color: rgb(74, 71, 66);
+	}
+
+</style>
+
 <ul>
-    <li><a href="{{ url_for('train_stream') }}">Start A New Stream Training</a></li>
-    <li><a href="{{ url_for('resume_stream') }}">Resume Stream Training</a></li>
-    <li><a href="{{ url_for('test_stream') }}">Evaluate Stream Network</a></li>
-    <li><a href="{{ url_for('inspect_stream') }}">Inspect Stream Network Output File</a></li>
-</ul>
-<h2>Stream Visualization</h2>
-<ul>
-	<li><a href="{{ url_for('visualize_stream') }}">Guided Backprop and Grad-CAM</a></li>
+    <li><a href="{{ url_for('train_stream') }}">
+		<span style="font-size: 20px">Stream Training</span>
+		<span style="font-size:14px"><br><br>Creates and resumes trainer for classification models</span>
+	</a></li>
+    <li><a href="{{ url_for('test_stream') }}">
+		<span style="font-size: 20px">Stream Evaluation</span>
+		<span style="font-size:14px"><br><br>Evaluates classification models on testing set</span>
+	</a></li>
+    <li><a href="{{ url_for('inspect_stream') }}">
+		<span style="font-size: 20px">Stream Benchmarking</span>
+		<span style="font-size:14px"><br><br>Compares performance between classification models</span>
+	</a></li>
+	<li><a href="{{ url_for('visualize_stream') }}">
+		<span style="font-size: 20px">Stream Visualization</span>
+		<span style="font-size:14px"><br><br>Visualizes models performing inference on a certain action</span>
+	</a></li>
 </ul>
 <!--
 <h3>Conventional Fusion</h3>
@@ -23,7 +54,7 @@
 <li><a href="">Check Stream Network Output File</a></li>
 -->
 
-<h2>System Info</h2>
+<!-- <h2>System Info</h2>
 <ul>
     <li><b>CUDA Support:</b> {{ device_info.cuda_support }} </li>
     <li><b>GPU Count:</b> {{ device_info.gpu_count }} </li>
@@ -34,5 +65,5 @@
         {%endfor%}
         </ul>
     </li>
-</ul>
+</ul> -->
 {% endblock %}

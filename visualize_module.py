@@ -387,7 +387,7 @@ def _cv2_visualize_softmax(rgb, flowu, flowv, label_list, y, target_class, modal
     for i, lab in enumerate(top_label):
         cv2.rectangle(output, 
                       (pad * 2 + img_w + add_w, text_h + (pad + bar_h) * i + pad), 
-                      (pad * 2 + img_w + add_w + int(bar_w * top_score[i] / top_score[0]), text_h + (pad + bar_h) * (i + 1)), 
+                      (pad * 2 + img_w + add_w + int(bar_w * top_score[i]), text_h + (pad + bar_h) * (i + 1)), 
                       colors[0 if lab == target_class else 1], cv2.FILLED)
         cv2.putText(output, label_list[lab], 
                     (pad * 2 + img_w + add_w, 
@@ -405,7 +405,7 @@ def _cv2_visualize_softmax(rgb, flowu, flowv, label_list, y, target_class, modal
     
 #%%
 
-def _cv2_visualize_rgb_anim(rgb, label_list, layer_list, y, target_class, grads, cam_imgs, grad_cams):
+def _cv2_visualize_anim(rgb, flowu, flowv, label_list, layer_list, y, target_class, grads, cam_imgs, grad_cams):
 
     img_h = 140
     img_w = 140
@@ -414,12 +414,18 @@ def _cv2_visualize_rgb_anim(rgb, label_list, layer_list, y, target_class, grads,
     
     out_h = text_h * 3 + img_h * (2 + len(cam_imgs) - 1) + pad * (2 + len(cam_imgs))
     
+    modality = 'rgb' if len(flowu) == 0 and len(flowv) == 0 else 'flow'
+    
     grads = np.uint8(((grads - np.min(grads)) / (np.max(grads) - np.min(grads))) * 255)
     
     for t in range(rgb.shape[0]):
         
-        softmax_img = _cv2_visualize_softmax(rgb[t], [], [], label_list, 
-                                             y, target_class, modality='rgb')
+        if modality == 'flow':
+            softmax_img = _cv2_visualize_softmax(rgb[t], flowu[t], flowv[t], label_list, 
+                                                 y, target_class, modality=modality)
+        else:
+            softmax_img = _cv2_visualize_softmax(rgb[t], [], [], label_list, 
+                                                 y, target_class, modality=modality)
         
         output = np.ones((out_h, softmax_img.shape[1], 3), np.uint8) * 255
         
@@ -427,26 +433,35 @@ def _cv2_visualize_rgb_anim(rgb, label_list, layer_list, y, target_class, grads,
         np.copyto(output[:softmax_img.shape[0], :, :], softmax_img)
         
         cv2.putText(output, 'RGB', (pad, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        cv2.putText(output, 'SOFTMAX', (pad * 2 + img_w, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+        if modality == 'flow':
+            cv2.putText(output, 'FLOW_U', (pad * 2 + img_w, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+            cv2.putText(output, 'FLOW_V', ((pad + img_w) * 2 + pad, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+            cv2.putText(output, 'SOFTMAX', ((pad + img_w) * 3 + pad, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+        else:
+            cv2.putText(output, 'SOFTMAX', (pad * 2 + img_w, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+        
+        cvtCode = {'rgb' : [cv2.COLOR_RGB2BGR, cv2.COLOR_RGB2BGR, cv2.COLOR_RGB2BGR],
+                   'flow' : [cv2.COLOR_GRAY2BGR, cv2.COLOR_RGB2BGR, cv2.COLOR_GRAY2BGR]
+                   }
         
         # gbp
         cv2.putText(output, 'GBP', (pad, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
         np.copyto(output[
                 softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
                 pad : pad + img_w, :
-                ], cv2.cvtColor(cv2.resize(grads[t], (img_h, img_w)), cv2.COLOR_RGB2BGR))
+                ], cv2.cvtColor(cv2.resize(grads[t], (img_h, img_w)), cvtCode[modality][0]))
         # cam (last layer)
         cv2.putText(output, 'GCAM', (pad * 2 + img_w, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
         np.copyto(output[
                 softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
                 pad * 2 + img_w : (pad + img_w) * 2, :
-                ], cv2.cvtColor(cv2.resize(cam_imgs[-1][t], (img_h, img_w)), cv2.COLOR_RGB2BGR))
+                ], cv2.resize(cam_imgs[-1][t], (img_h, img_w)))
         # grad cam (last layer)
         cv2.putText(output, 'GBP+GCAM', (pad * 3 + img_w * 2, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
         np.copyto(output[
                 softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
                 (pad + img_w) * 2 + pad : (pad + img_w) * 3, :
-                ], cv2.cvtColor(cv2.resize(grad_cams[-1][t], (img_h, img_w)), cv2.COLOR_RGB2BGR))
+                ], cv2.cvtColor(cv2.resize(grad_cams[-1][t], (img_h, img_w)), cvtCode[modality][2]))
         
         # grad cam at other layers
         for c in range(len(cam_imgs) - 1):
@@ -456,12 +471,12 @@ def _cv2_visualize_rgb_anim(rgb, label_list, layer_list, y, target_class, grads,
             np.copyto(output[
                 softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c : softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c + img_h, 
                 pad * 2 + img_w : (pad + img_w) * 2, :
-                ], cv2.cvtColor(cv2.resize(cam_imgs[c][t], (img_h, img_w)), cv2.COLOR_RGB2BGR))
+                ], cv2.resize(cam_imgs[c][t], (img_h, img_w)))
     
             np.copyto(output[
                 softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c : softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c + img_h, 
                 (pad + img_w) * 2 + pad : (pad + img_w) * 3, :
-                ], cv2.cvtColor(cv2.resize(grad_cams[c][t], (img_h, img_w)), cv2.COLOR_RGB2BGR))
+                ], cv2.cvtColor(cv2.resize(grad_cams[c][t], (img_h, img_w)), cvtCode[modality][2]))
         
         cv2.putText(output, 'frame ' + str(t+1), (output.shape[1] - 80, 20), 
                     cv2.FONT_HERSHEY_PLAIN, 0.8, (0,0,255))
@@ -475,7 +490,7 @@ def _cv2_visualize_rgb_anim(rgb, label_list, layer_list, y, target_class, grads,
 
 #%%
     
-def _cv2_visualize_rgb(rgb, label_list, layer_list, y, target_class, grads, cam_imgs, grad_cams, clip_name):
+def _cv2_visualize_output(rgb, flowu, flowv, label_list, layer_list, y, target_class, grads, cam_imgs, grad_cams, clip_name):
     
     img_h = 140
     img_w = 140
@@ -489,7 +504,12 @@ def _cv2_visualize_rgb(rgb, label_list, layer_list, y, target_class, grads, cam_
     item_h = (img_h + pad) * h_count + text_h
     item_w = (img_w + pad) * w_count + pad
     
-    softmax_img = _cv2_visualize_softmax(rgb[0], None, None, label_list, y, target_class, modality='rgb')
+    modality = 'rgb' if len(flowu) == 0 and len(flowv) == 0 else 'flow'
+    
+    if modality == 'flow':
+        softmax_img = _cv2_visualize_softmax(rgb[0], flowu[0], flowv[0], label_list, y, target_class, modality=modality)
+    else:
+        softmax_img = _cv2_visualize_softmax(rgb[0], [], [], label_list, y, target_class, modality=modality)
     
     out_h = softmax_img.shape[0] + item_h * (2 + len(cam_imgs) * 2)
     out_w = item_w
@@ -508,6 +528,10 @@ def _cv2_visualize_rgb(rgb, label_list, layer_list, y, target_class, grads, cam_
     vol.extend([cam_imgs[i] for i in range(len(cam_imgs))])
     vol.extend([grad_cams[i] for i in range(len(grad_cams))])
     
+#    cvtCode = {'rgb' : [cv2.COLOR_RGB2BGR, cv2.COLOR_RGB2BGR, cv2.COLOR_RGB2BGR],
+#               'flow' : [cv2.COLOR_GRAY2BGR, cv2.COLOR_RGB2BGR, cv2.COLOR_GRAY2BGR]
+#               }
+    
     for i, t in enumerate(title):
         
         cv2.putText(output, t, (pad, softmax_img.shape[0] + (item_h + pad) * i), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
@@ -522,7 +546,7 @@ def _cv2_visualize_rgb(rgb, label_list, layer_list, y, target_class, grads, cam_
                     softmax_img.shape[0] + (img_h + pad) * fy + pad + (item_h + pad) * i : 
                         softmax_img.shape[0] + (img_h + pad) * (fy + 1) + (item_h + pad) * i, 
                     (pad + img_w) * fx + pad : (pad + img_w) * (fx + 1), :
-                    ], buf)
+                    ], buf if 'GCAM' in t or modality == 'rgb' else cv2.cvtColor(buf, cv2.COLOR_GRAY2BGR))
     
     cv2.putText(output, clip_name, (pad, pad * 2), 
                     cv2.FONT_HERSHEY_PLAIN, 1.4, (0,0,255))
@@ -531,150 +555,149 @@ def _cv2_visualize_rgb(rgb, label_list, layer_list, y, target_class, grads, cam_
     
 #%%
     
-def _cv2_visualize_flow_anim(rgb, flowu, flowv, label_list, layer_list, y, target_class, grads, cam_imgs, grad_camu, grad_camv):
-
-    img_h = 140
-    img_w = 140
-    text_h = 20
-    pad = 10
-    
-    out_h = text_h * 3 + img_h * (2 + len(cam_imgs) - 1) + pad * (2 + len(cam_imgs))
-    
-    grads = np.uint8(((grads - np.min(grads)) / (np.max(grads) - np.min(grads))) * 255)
-    
-    for t in range(rgb.shape[0]):
-        
-        softmax_img = _cv2_visualize_softmax(rgb[t], flowu[t], flowv[t], label_list, 
-                                             y, target_class, modality='flow')
-        
-        output = np.ones((out_h, softmax_img.shape[1], 3), np.uint8) * 255
-        
-        # softmax img
-        np.copyto(output[:softmax_img.shape[0], :, :], softmax_img)
-        
-        cv2.putText(output, 'RGB', (pad, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        cv2.putText(output, 'FLOW_U', (pad * 2 + img_w, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        cv2.putText(output, 'FLOW_V', ((pad + img_w) * 2 + pad, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        cv2.putText(output, 'SOFTMAX', ((pad + img_w) * 3 + pad, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        
-        # gbp u
-        cv2.putText(output, 'GBP_U', (pad, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        np.copyto(output[
-                softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
-                pad : pad + img_w, :
-                ], cv2.cvtColor(cv2.resize(grads[t, :, :, 0], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
-        # gbp v
-        cv2.putText(output, 'GBP_V', (pad * 2 + img_w, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        np.copyto(output[
-                softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
-                pad * 2 + img_w : (pad + img_w) * 2, :
-                ], cv2.cvtColor(cv2.resize(grads[t, :, :, 1], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
-        # cam (last layer)
-        cv2.putText(output, 'GCAM', (pad * 3 + img_w * 2, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        np.copyto(output[
-                softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
-                (pad + img_w) * 2 + pad : (pad + img_w) * 3, :
-                ], cv2.cvtColor(cv2.resize(cam_imgs[-1][t], (img_h, img_w)), cv2.COLOR_RGB2BGR))
-        # grad cam (last layer)
-        cv2.putText(output, 'GBP+GCAM_U', (pad * 4 + img_w * 3, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        np.copyto(output[
-                softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
-                (pad + img_w) * 3 + pad : (pad + img_w) * 4, :
-                ], cv2.cvtColor(cv2.resize(grad_camu[-1][t], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
-        # grad cam (last layer)
-        cv2.putText(output, 'GBP+GCAM_V', (pad * 5 + img_w * 4, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        np.copyto(output[
-                softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
-                (pad + img_w) * 4 + pad : (pad + img_w) * 5, :
-                ], cv2.cvtColor(cv2.resize(grad_camv[-1][t], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
-    
-        # grad cam at other layers
-        for c in range(len(cam_imgs) - 1):
-            
-            cv2.putText(output, layer_list[c], (pad * 2 + img_w, (img_h + pad) * c + pad + 70 + img_h + softmax_img.shape[0] + text_h), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,255))
-            
-            np.copyto(output[
-                softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c : softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c + img_h, 
-                (pad + img_w) * 2 + pad : (pad + img_w) * 3, :
-                ], cv2.cvtColor(cv2.resize(cam_imgs[c][t], (img_h, img_w)), cv2.COLOR_RGB2BGR))
-    
-            np.copyto(output[
-                softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c : softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c + img_h, 
-                (pad + img_w) * 3 + pad : (pad + img_w) * 4, :
-                ], cv2.cvtColor(cv2.resize(grad_camu[c][t], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
-    
-            np.copyto(output[
-                softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c : softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c + img_h, 
-                (pad + img_w) * 4 + pad : (pad + img_w) * 5, :
-                ], cv2.cvtColor(cv2.resize(grad_camv[c][t], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
-        
-        cv2.putText(output, 'frame ' + str(t+1), (output.shape[1] - 80, 20), 
-                    cv2.FONT_HERSHEY_PLAIN, 0.8, (0,0,255))
-        
-        cv2.imwrite('static/vis/result/'+str(t)+'.jpg', output)
-    
+#def _cv2_visualize_flow_anim(rgb, flowu, flowv, label_list, layer_list, y, target_class, grads, cam_imgs, grad_camu, grad_camv):
+#
+#    img_h = 140
+#    img_w = 140
+#    text_h = 20
+#    pad = 10
+#    
+#    out_h = text_h * 3 + img_h * (2 + len(cam_imgs) - 1) + pad * (2 + len(cam_imgs))
+#    
+#    grads = np.uint8(((grads - np.min(grads)) / (np.max(grads) - np.min(grads))) * 255)
+#    
+#    for t in range(rgb.shape[0]):
+#        
+#        softmax_img = _cv2_visualize_softmax(rgb[t], flowu[t], flowv[t], label_list, 
+#                                             y, target_class, modality='flow')
+#        
+#        output = np.ones((out_h, softmax_img.shape[1], 3), np.uint8) * 255
+#        
+#        # softmax img
+#        np.copyto(output[:softmax_img.shape[0], :, :], softmax_img)
+#        
+#        cv2.putText(output, 'RGB', (pad, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+#        cv2.putText(output, 'FLOW_U', (pad * 2 + img_w, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+#        cv2.putText(output, 'FLOW_V', ((pad + img_w) * 2 + pad, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+#        cv2.putText(output, 'SOFTMAX', ((pad + img_w) * 3 + pad, pad * 2), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+#        
+#        # gbp u
+#        cv2.putText(output, 'GBP_U', (pad, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+#        np.copyto(output[
+#                softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
+#                pad : pad + img_w, :
+#                ], cv2.cvtColor(cv2.resize(grads[t, :, :, 0], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
+#        # gbp v
+#        cv2.putText(output, 'GBP_V', (pad * 2 + img_w, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+#        np.copyto(output[
+#                softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
+#                pad * 2 + img_w : (pad + img_w) * 2, :
+#                ], cv2.cvtColor(cv2.resize(grads[t, :, :, 1], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
+#        # cam (last layer)
+#        cv2.putText(output, 'GCAM', (pad * 3 + img_w * 2, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+#        np.copyto(output[
+#                softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
+#                (pad + img_w) * 2 + pad : (pad + img_w) * 3, :
+#                ], cv2.cvtColor(cv2.resize(cam_imgs[-1][t], (img_h, img_w)), cv2.COLOR_RGB2BGR))
+#        # grad cam (last layer)
+#        cv2.putText(output, 'GBP+GCAM_U', (pad * 4 + img_w * 3, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+#        np.copyto(output[
+#                softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
+#                (pad + img_w) * 3 + pad : (pad + img_w) * 4, :
+#                ], cv2.cvtColor(cv2.resize(grad_camu[-1][t], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
+#        # grad cam (last layer)
+#        cv2.putText(output, 'GBP+GCAM_V', (pad * 5 + img_w * 4, img_h + text_h * 3), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+#        np.copyto(output[
+#                softmax_img.shape[0] + text_h : softmax_img.shape[0] + text_h + img_h, 
+#                (pad + img_w) * 4 + pad : (pad + img_w) * 5, :
+#                ], cv2.cvtColor(cv2.resize(grad_camv[-1][t], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
+#    
+#        # grad cam at other layers
+#        for c in range(len(cam_imgs) - 1):
+#            
+#            cv2.putText(output, layer_list[c], (pad * 2 + img_w, (img_h + pad) * c + pad + 70 + img_h + softmax_img.shape[0] + text_h), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,255))
+#            
+#            np.copyto(output[
+#                softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c : softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c + img_h, 
+#                (pad + img_w) * 2 + pad : (pad + img_w) * 3, :
+#                ], cv2.cvtColor(cv2.resize(cam_imgs[c][t], (img_h, img_w)), cv2.COLOR_RGB2BGR))
+#    
+#            np.copyto(output[
+#                softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c : softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c + img_h, 
+#                (pad + img_w) * 3 + pad : (pad + img_w) * 4, :
+#                ], cv2.cvtColor(cv2.resize(grad_camu[c][t], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
+#    
+#            np.copyto(output[
+#                softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c : softmax_img.shape[0] + text_h * 2 + img_h + (img_h + pad) * c + img_h, 
+#                (pad + img_w) * 4 + pad : (pad + img_w) * 5, :
+#                ], cv2.cvtColor(cv2.resize(grad_camv[c][t], (img_h, img_w)), cv2.COLOR_GRAY2BGR))
+#        
+#        cv2.putText(output, 'frame ' + str(t+1), (output.shape[1] - 80, 20), 
+#                    cv2.FONT_HERSHEY_PLAIN, 0.8, (0,0,255))
+#        
+#        cv2.imwrite('static/vis/result/'+str(t)+'.jpg', output)
+#    
 #        cv2.imshow('out', output)
 #        cv2.waitKey()
 #        
 #    cv2.destroyAllWindows()
 #%%
         
-def _cv2_visualize_flow(rgb, flowu, flowv, label_list, layer_list, y, target_class, grads, cam_imgs, grad_camu, grad_camv, clip_name):
-    
-    img_h = 140
-    img_w = 140
-    text_h = 20
-    pad = 10
-    
-    frame_count = rgb.shape[0]
-    w_count = 8
-    h_count = int(ceil(frame_count / w_count))
-    
-    item_h = (img_h + pad) * h_count + text_h
-    item_w = (img_w + pad) * w_count + pad
-    
-    softmax_img = _cv2_visualize_softmax(rgb[0], flowu[0], flowv[0], label_list, y, target_class, modality='flow')
-    
-    out_h = softmax_img.shape[0] + item_h * (3 + len(cam_imgs) * 3)
-    out_w = item_w
-    out_w = out_w if out_w > softmax_img.shape[1] else softmax_img.shape[1]
-    
-    output = np.ones((out_h, out_w, 3), np.uint8) * 255
-    
-    grads = np.uint8(((grads - np.min(grads)) / (np.max(grads) - np.min(grads))) * 255)
-    
-    # softmax img
-    np.copyto(output[:softmax_img.shape[0], :softmax_img.shape[1], :], softmax_img)
-    
-    title = ['GBP_U', 'GBP_V']
-    vol = [grads[:, :, :, 0], grads[:, :, :, 1]]
-    for i, t in enumerate(['GCAM', 'GBP+GCAM_U', 'GBP+GCAM_V']):
-        title.extend([t + ' at ' + lay for lay in layer_list])
-    vol.extend([cam_imgs[i] for i in range(len(cam_imgs))])
-    vol.extend([grad_camu[i] for i in range(len(grad_camu))])
-    vol.extend([grad_camv[i] for i in range(len(grad_camv))])
-        
-    for i, t in enumerate(title):
-        
-        cv2.putText(output, t, (pad, softmax_img.shape[0] + (item_h + pad) * i), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
-        
-        for tt in range(len(vol[i])):
-            fx = tt % w_count
-            fy = tt // w_count
-            buf = cv2.resize(vol[i][tt], (img_h, img_w))
-            if len(buf.shape) != 3:
-                buf = buf[:, :, np.newaxis]
-            np.copyto(output[
-                    softmax_img.shape[0] + (img_h + pad) * fy + pad + (item_h + pad) * i : 
-                        softmax_img.shape[0] + (img_h + pad) * (fy + 1) + (item_h + pad) * i, 
-                    (pad + img_w) * fx + pad : (pad + img_w) * (fx + 1), :
-                    ], buf)
-    
-    cv2.putText(output, clip_name, (pad, pad * 2), 
-                    cv2.FONT_HERSHEY_PLAIN, 1.4, (0,0,255))
-    
-    cv2.imwrite('output/vis/'+clip_name+'.jpg', output)
-    
+#def _cv2_visualize_flow(rgb, flowu, flowv, label_list, layer_list, y, target_class, grads, cam_imgs, grad_cams, clip_name):
+#    
+#    img_h = 140
+#    img_w = 140
+#    text_h = 20
+#    pad = 10
+#    
+#    frame_count = rgb.shape[0]
+#    w_count = 8
+#    h_count = int(ceil(frame_count / w_count))
+#    
+#    item_h = (img_h + pad) * h_count + text_h
+#    item_w = (img_w + pad) * w_count + pad
+#    
+#    softmax_img = _cv2_visualize_softmax(rgb[0], flowu[0], flowv[0], label_list, y, target_class, modality='flow')
+#    
+#    out_h = softmax_img.shape[0] + item_h * (2 + len(cam_imgs) * 2)
+#    out_w = item_w
+#    out_w = out_w if out_w > softmax_img.shape[1] else softmax_img.shape[1]
+#    
+#    output = np.ones((out_h, out_w, 3), np.uint8) * 255
+#    
+#    grads = np.uint8(((grads - np.min(grads)) / (np.max(grads) - np.min(grads))) * 255)
+#    
+#    # softmax img
+#    np.copyto(output[:softmax_img.shape[0], :softmax_img.shape[1], :], softmax_img)
+#    
+#    title = ['GBP', 'GBP']
+#    vol = [grads]
+#    for i, t in enumerate(['GCAM', 'GBP+GCAM']):
+#        title.extend([t + ' at ' + lay for lay in layer_list])
+#    vol.extend([cam_imgs[i] for i in range(len(cam_imgs))])
+#    vol.extend([grad_cams[i] for i in range(len(grad_cams[i]))])
+#        
+#    for i, t in enumerate(title):
+#        
+#        cv2.putText(output, t, (pad, softmax_img.shape[0] + (item_h + pad) * i), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,0))
+#        
+#        for tt in range(len(vol[i])):
+#            fx = tt % w_count
+#            fy = tt // w_count
+#            buf = cv2.resize(vol[i][tt], (img_h, img_w))
+#            if len(buf.shape) != 3:
+#                buf = buf[:, :, np.newaxis]
+#            np.copyto(output[
+#                    softmax_img.shape[0] + (img_h + pad) * fy + pad + (item_h + pad) * i : 
+#                        softmax_img.shape[0] + (img_h + pad) * (fy + 1) + (item_h + pad) * i, 
+#                    (pad + img_w) * fx + pad : (pad + img_w) * (fx + 1), :
+#                    ], buf)
+#    
+#    cv2.putText(output, clip_name, (pad, pad * 2), 
+#                    cv2.FONT_HERSHEY_PLAIN, 1.4, (0,0,255))
+#    
+#    cv2.imwrite('output/vis/'+clip_name+'.jpg', output)
+#    
 #class StreamVis(object):
 #    def __init__(self):
 #        pass
@@ -747,10 +770,10 @@ class StreamVis(object):
         torch.cuda.empty_cache()
         
         # save output
-        _cv2_visualize_rgb_anim(img, self.label_list, self.form_args['vis_layer'], y, int(self.form_args['target_class']), 
-                                grad, cam_img, grad_cam)
-        _cv2_visualize_rgb(img, self.label_list, self.form_args['vis_layer'], y, int(self.form_args['target_class']), 
-                                grad, cam_img, grad_cam, 
+        _cv2_visualize_anim(img, [], [], self.label_list, self.form_args['vis_layer'], y, 
+                                int(self.form_args['target_class']), grad, cam_img, grad_cam)
+        _cv2_visualize_output(img, [], [], self.label_list, self.form_args['vis_layer'], y, 
+                                int(self.form_args['target_class']), grad, cam_img, grad_cam, 
                                 self.args['output_name'] + '-' + self.form_args['clip_name'] + '-' + self.label_list[int(self.form_args['target_class'])])
         
     def run_visualize_flow(self):
@@ -761,6 +784,10 @@ class StreamVis(object):
         # grad -> (t, h, w, c), y -> (1, nc) where c = 2
         grad, y = gbp.compute_grad(self.flow, int(self.form_args['target_class']))
         torch.cuda.empty_cache()
+        
+        # merging flow of two channels
+        #grad = np.uint8(((grad - np.min(grad)) / (np.max(grad) - np.min(grad))) * 255)
+        grad = np.sum(grad, axis = 3)
         
         print('visualize_flow/running GCAM')
         gcam = GradCAM(self.model, self.form_args['vis_layer'])
@@ -784,16 +811,17 @@ class StreamVis(object):
         
         # grad_cam -> [layer](t, h, w, c)
         print('visualize_flow/runnning GBP+GCAM')
-        grad_cam_u = [gcam.get_grad_cam(grad[:, :, :, 0], x) for x in cam]
-        grad_cam_v = [gcam.get_grad_cam(grad[:, :, :, 1], x) for x in cam]
+        grad_cam = [gcam.get_grad_cam(grad, x) for x in cam]
+        #grad_cam_u = [gcam.get_grad_cam(grad[:, :, :, 0], x) for x in cam]
+        #grad_cam_v = [gcam.get_grad_cam(grad[:, :, :, 1], x) for x in cam]
         
         torch.cuda.empty_cache()
         
         # save output
-        _cv2_visualize_flow_anim(img, flowu, flowv, self.label_list, self.form_args['vis_layer'], y, int(self.form_args['target_class']), 
-                                grad, cam_img, grad_cam_u, grad_cam_v)
-        _cv2_visualize_flow(img, flowu, flowv, self.label_list, self.form_args['vis_layer'], y, int(self.form_args['target_class']), 
-                                grad, cam_img, grad_cam_u, grad_cam_v, 
+        _cv2_visualize_anim(img, flowu, flowv, self.label_list, self.form_args['vis_layer'], y, 
+                            int(self.form_args['target_class']), grad, cam_img, grad_cam)
+        _cv2_visualize_output(img, flowu, flowv, self.label_list, self.form_args['vis_layer'], y, 
+                              int(self.form_args['target_class']), grad, cam_img, grad_cam, 
                                 self.args['output_name'] + '-' + self.form_args['clip_name'] + '-' + self.label_list[int(self.form_args['target_class'])])
         
 #%%

@@ -24,6 +24,7 @@ from .stream_module import StreamTrainer
 from .visualize_module import StreamVis
 
 from .graph import *
+import os
 
 graph_config = {'scrollZoom' : False, 'displayModeBar' : False}
 
@@ -59,13 +60,20 @@ def form_to_dict(form):
 def index():
     base_meta = {
         'title' : 'two-stream action recognition benchmarking', 
-        'header' : 'Index'
+        'header' : 'Toolset for Two-Stream Action Classification Models'
         }
     return render_template('index.html', base_meta = base_meta, device_info = device_info)
 
 def exec_train_stream(st):
     st.setup_training()
     st.train_net()
+    st.update['init'] = False
+    st.update['complete'] = True
+    
+def exec_resume_stream(st):
+    st.setup_resume_training()
+    st.train_net()
+    st.update['init'] = False
     st.update['complete'] = True
 
 @app.route('/train_stream', methods=['GET', 'POST'])
@@ -77,14 +85,13 @@ def train_stream():
     if (req == {} or req == None): # this is not ajax request
         # if stream trainer is not yet instantiated
         if 'st' not in globals():
-            print('train_stream/OH NO YOU SEE ME!')
             global st
             st = None
             
         # if stream trainer is None
         if st == None:
-            base_meta['title'] = 'stream/train_stream'
-            base_meta['header'] = 'New Stream Training'
+            base_meta['title'] = 'Stream Trainer'
+            base_meta['header'] = 'Stream Trainer'
             global form
             form = TrainStreamForm(device_info['gpu_names'])
             # start the stream training thread
@@ -92,7 +99,10 @@ def train_stream():
                 #Thread(target = (lambda: st.init(form_to_dict(form)))).start()
                 st = StreamTrainer(form_to_dict(form))
                 print('train_stream/form_success')
-                Thread(target = exec_train_stream, args = (st,)).start()
+                if form.half_model.data == '':
+                    Thread(target = exec_train_stream, args = (st,)).start()
+                else:
+                    Thread(target = exec_resume_stream, args = (st,)).start()
                 #return jsonify(form_to_dict(form))
                 return render_template('initializing.html', url=url_for('train_stream'))
             else:
@@ -104,8 +114,8 @@ def train_stream():
         else: # there is already an istance of train streamer
             if st.update['init']: # if st is ready
                 #return 'TRAINING START'
-                base_meta['title'] = 'train_stream/'+st.args['output_name']
-                base_meta['header'] = 'Stream Training - '+st.args['output_name']
+                base_meta['title'] = 'Stream Trainer'
+                base_meta['header'] = 'Stream Trainer - '+st.args['output_name']
                 return render_template('train_net_state.html', base_meta=base_meta, st=st, url=url_for('train_stream'))
             else:
                 return render_template('initializing.html', url=url_for('train_stream'))
@@ -140,6 +150,23 @@ def train_stream():
             form.freeze_point.choices = [('none', 'None')]
             form.freeze_point.choices.extend([(x,x) for x in BASE_CONFIG['network'][req['network']]['endpoint']])
             return jsonify({'html':form.freeze_point})
+        
+        elif 'model' in req.keys():
+            if req['model'] == '':
+                form.epoch.validators[1] = num_range(min=1, dependant=[None, None])
+                return jsonify({'pkg_html':'<span style="color: red;">No data available</span>', 'form_epoch':form.epoch})
+            else:
+                p = torch.load(req['model'], map_location=lambda storage, loc: storage)
+                p_args = p['args']
+                p_training = {x:p['output'][x] for x in ['train_loss', 'val_loss', 'train_acc', 'val_acc']}
+                p_epoch = p['epoch']
+                # update form object default value
+                del p
+                form.epoch.validators[1] = num_range(min=p_epoch + 1, dependant=['previous epoch', None])
+                form_keys= list(form_to_dict(form).keys())
+                resume_args = {k : p_args[k] for k in form_keys if k != 'half_model'}
+                return jsonify({'pkg_html':render_template('resume_stream_properties.html', args = p_args, training = p_training, epoch = p_epoch), 
+                                'resume_args':resume_args, 'form_epoch':form.epoch})
             
         else: # if initialization is done
             #print('train_stream/st/update/init', st.update['init'])
@@ -179,115 +206,112 @@ def train_stream():
                     return 'done'
                 else:
                     return ''
-    
-def exec_resume_stream(st):
-    st.setup_resume_training()
-    st.train_net()
-    st.update['complete'] = True
 
 @app.route('/resume_stream', methods=['GET', 'POST'])
 def resume_stream():
-    req = request.json
-    print('resume_stream/request.json', req)
-    
-    # check if this is ajax post from initializing page
-    if (req == {} or req == None): # this is not ajax request
-        # if stream trainer is not yet instantiated
-        if 'st' not in globals():
-            print('resume_stream/OH NO YOU SEE ME!')
-            global st
-            st = None
-            
-        # if stream trainer is None
-        if st == None:
-            base_meta['title'] = 'stream/resume_stream'
-            base_meta['header'] = 'Resume Stream Training'
-            global form
-            form = ResumeStreamForm(device_info['gpu_names'])
-            # start the stream training thread
-            if form.validate_on_submit():
-                #Thread(target = (lambda: st.init(form_to_dict(form)))).start()
-                print('resume_stream/form_success')
-                st = StreamTrainer(form_to_dict(form))
-                Thread(target = exec_resume_stream, args = (st,)).start()
-                return render_template('initializing.html', url=url_for('resume_stream'))
-                #return jsonify(form_to_dict(form))
-            else:
-                for fieldName, errorMessages in form.errors.items():
-                    for err in errorMessages:
-                        print('resume_stream/form_failed',fieldName, err)
-            return render_template('resume_stream_setup.html', base_meta = base_meta, form = form)
-        
-        else: # there is already an istance of train streamer
-            if st.update['init']: # if st is ready
-                #return 'TRAINING RESUME'
-                base_meta['title'] = 'resume_stream/'+st.args['output_name']
-                base_meta['header'] = 'Resume Stream Training - '+st.args['output_name']
-                return render_template('train_net_state.html', base_meta=base_meta, st=st, url=url_for('resume_stream'))
-            else:
-                return render_template('initializing.html', url=url_for('resume_stream'))
-            
-    else: # there is something in the request json
-        
-        if 'model' in req.keys(): # update properties and forms default value
-            if req['model'] == '':
-                return jsonify({'html':'<span style="color: red;">No data available</span>'})
-            else:
-                p = torch.load(req['model'], map_location=lambda storage, loc: storage)
-                p_args = p['args']
-                p_training = {x:p['output'][x] for x in ['train_loss', 'val_loss', 'train_acc', 'val_acc']}
-                p_epoch = p['epoch']
-                del p
-                form.epoch.validators[1] = num_range(min=p_epoch, dependant=['previous epoch', None])
-                form.sub_batch_size.validators[1] = num_range(min = 1, max = p_args['batch_size'], dependant=[None,'batch size'])
-                form.val_batch_size.validators[1] = num_range(min = 1, max = p_args['batch_size'], dependant=[None,'batch size'])
-                form.output_compare.choices = [x for x in form.half_model.choices if x[0] != req['model'] and x[0] != '']
-                return jsonify({'html':render_template('resume_stream_properties.html', args = p_args, training = p_training, epoch = p_epoch), 
-                                'device':p_args['device'], 'sub':p_args['sub_batch_size'], 
-                                'val':p_args['val_batch_size'], 'name':p_args['output_name'], 
-                                'compare_html':form.output_compare, 'compare':p_args['output_compare']})
-        else: # if initialization is done
-            #print('train_stream/st/update/init', st.update['init'])
-            if 'update' in req.keys(): # for updating request
-                if st.update['init']:
-                    response = {'progress':st.update['progress'], 'result':st.update['result'], 'complete':st.update['complete'], 'no_compare':(st.compare == [])}
-                    print(response)
-                    
-                    if st.update['progress']: # update progress status
-                        st.update['progress'] = False
-                        response['progress_html'] = render_template('train_progress_div.html', st=st)
-                        
-                    if st.update['result']: # update result
-                        st.update['result'] = False
-                        main_loss_graph(st.epoch, st.main_output['output']['train_loss'], st.main_output['output']['val_loss'])
-                        main_acc_graph(st.epoch, st.main_output['output']['train_acc'], st.main_output['output']['val_acc'])
-                        if st.compare != []:
-                            comparing_graph2(st.main_output, st.compare, 'Loss', 'loss')
-                            comparing_graph2(st.main_output, st.compare, 'Accuracy', 'acc')
-#                            comparing_graph(st.main_output, st.compare, 'train_loss', 'loss')
-#                            comparing_graph(st.main_output, st.compare, 'val_loss', 'loss')
-#                            comparing_graph(st.main_output, st.compare, 'train_acc', 'accuracy')
-#                            comparing_graph(st.main_output, st.compare, 'val_acc', 'accuracy')
-                        
-                    if st.update['complete']:
-                        st.update['complete'] = False
-                        response['progress_html'] = render_template('train_progress_div.html', st=st)
-                        del globals()['st']
-                        torch.cuda.empty_cache()
-                        
-                    return jsonify(response)
-                else:
-                    return ''
-                
-            else: # for initializing request
-                if st.update['init']:
-                    return 'done'
-                else:
-                    return ''
+    return 'Deprecated'
+#    req = request.json
+#    print('resume_stream/request.json', req)
+#    
+#    # check if this is ajax post from initializing page
+#    if (req == {} or req == None): # this is not ajax request
+#        # if stream trainer is not yet instantiated
+#        if 'st' not in globals():
+#            print('resume_stream/OH NO YOU SEE ME!')
+#            global st
+#            st = None
+#            
+#        # if stream trainer is None
+#        if st == None:
+#            base_meta['title'] = 'stream/resume_stream'
+#            base_meta['header'] = 'Resume Stream Training'
+#            global form
+#            form = ResumeStreamForm(device_info['gpu_names'])
+#            # start the stream training thread
+#            if form.validate_on_submit():
+#                #Thread(target = (lambda: st.init(form_to_dict(form)))).start()
+#                print('resume_stream/form_success')
+#                st = StreamTrainer(form_to_dict(form))
+#                Thread(target = exec_resume_stream, args = (st,)).start()
+#                return render_template('initializing.html', url=url_for('resume_stream'))
+#                #return jsonify(form_to_dict(form))
+#            else:
+#                for fieldName, errorMessages in form.errors.items():
+#                    for err in errorMessages:
+#                        print('resume_stream/form_failed',fieldName, err)
+#            return render_template('resume_stream_setup.html', base_meta = base_meta, form = form)
+#        
+#        else: # there is already an istance of train streamer
+#            if st.update['init']: # if st is ready
+#                #return 'TRAINING RESUME'
+#                base_meta['title'] = 'resume_stream/'+st.args['output_name']
+#                base_meta['header'] = 'Resume Stream Training - '+st.args['output_name']
+#                return render_template('train_net_state.html', base_meta=base_meta, st=st, url=url_for('resume_stream'))
+#            else:
+#                return render_template('initializing.html', url=url_for('resume_stream'))
+#            
+#    else: # there is something in the request json
+#        
+#        if 'model' in req.keys(): # update properties and forms default value
+#            if req['model'] == '':
+#                return jsonify({'html':'<span style="color: red;">No data available</span>'})
+#            else:
+#                p = torch.load(req['model'], map_location=lambda storage, loc: storage)
+#                p_args = p['args']
+#                p_training = {x:p['output'][x] for x in ['train_loss', 'val_loss', 'train_acc', 'val_acc']}
+#                p_epoch = p['epoch']
+#                del p
+#                form.epoch.validators[1] = num_range(min=p_epoch, dependant=['previous epoch', None])
+#                form.sub_batch_size.validators[1] = num_range(min = 1, max = p_args['batch_size'], dependant=[None,'batch size'])
+#                form.val_batch_size.validators[1] = num_range(min = 1, max = p_args['batch_size'], dependant=[None,'batch size'])
+#                form.output_compare.choices = [x for x in form.half_model.choices if x[0] != req['model'] and x[0] != '']
+#                return jsonify({'html':render_template('resume_stream_properties.html', args = p_args, training = p_training, epoch = p_epoch), 
+#                                'device':p_args['device'], 'sub':p_args['sub_batch_size'], 
+#                                'val':p_args['val_batch_size'], 'name':p_args['output_name'], 
+#                                'compare_html':form.output_compare, 'compare':p_args['output_compare']})
+#        else: # if initialization is done
+#            #print('train_stream/st/update/init', st.update['init'])
+#            if 'update' in req.keys(): # for updating request
+#                if st.update['init']:
+#                    response = {'progress':st.update['progress'], 'result':st.update['result'], 'complete':st.update['complete'], 'no_compare':(st.compare == [])}
+#                    print(response)
+#                    
+#                    if st.update['progress']: # update progress status
+#                        st.update['progress'] = False
+#                        response['progress_html'] = render_template('train_progress_div.html', st=st)
+#                        
+#                    if st.update['result']: # update result
+#                        st.update['result'] = False
+#                        main_loss_graph(st.epoch, st.main_output['output']['train_loss'], st.main_output['output']['val_loss'])
+#                        main_acc_graph(st.epoch, st.main_output['output']['train_acc'], st.main_output['output']['val_acc'])
+#                        if st.compare != []:
+#                            comparing_graph2(st.main_output, st.compare, 'Loss', 'loss')
+#                            comparing_graph2(st.main_output, st.compare, 'Accuracy', 'acc')
+##                            comparing_graph(st.main_output, st.compare, 'train_loss', 'loss')
+##                            comparing_graph(st.main_output, st.compare, 'val_loss', 'loss')
+##                            comparing_graph(st.main_output, st.compare, 'train_acc', 'accuracy')
+##                            comparing_graph(st.main_output, st.compare, 'val_acc', 'accuracy')
+#                        
+#                    if st.update['complete']:
+#                        st.update['complete'] = False
+#                        response['progress_html'] = render_template('train_progress_div.html', st=st)
+#                        del globals()['st']
+#                        torch.cuda.empty_cache()
+#                        
+#                    return jsonify(response)
+#                else:
+#                    return ''
+#                
+#            else: # for initializing request
+#                if st.update['init']:
+#                    return 'done'
+#                else:
+#                    return ''
         
 def exec_test_stream(st):
     st.setup_testing()
     st.test_net()
+    st.update['init'] = False
     st.update['complete'] = True
 
 @app.route('/test_stream', methods=['GET', 'POST'])
@@ -304,7 +328,7 @@ def test_stream():
             
         # if stream trainer is None
         if st == None:
-            base_meta['title'] = 'stream/test_stream'
+            base_meta['title'] = 'Stream Evaluation'
             base_meta['header'] = 'Stream Evaluation'
             global form
             form = TestStreamForm(device_info['gpu_names'])
@@ -314,9 +338,8 @@ def test_stream():
                 st = StreamTrainer(form_to_dict(form))
                 print('test_stream/form_success')
                 # retrieve training state graph
-                p = torch.load(form.full_model.data, map_location=lambda storage, loc: storage)
-                main_loss_graph(p['epoch'], p['output']['train_loss'], p['output']['val_loss'])
-                main_acc_graph(p['epoch'], p['output']['train_acc'], p['output']['val_acc'])
+                #p = torch.load(form.full_model.data, map_location=lambda storage, loc: storage)
+                        
                 Thread(target = exec_test_stream, args = (st,)).start()
                 #return jsonify(form_to_dict(form))
                 return render_template('initializing.html', url=url_for('test_stream'))
@@ -328,9 +351,12 @@ def test_stream():
         
         else:
             if st.update['init']:
-                base_meta['title'] = 'test_stream/'+st.args['output_name']
+                base_meta['title'] = 'Stream Evaluation'
                 base_meta['header'] = 'Stream Evaluation - '+st.args['output_name']
-                return render_template('test_stream_state.html', base_meta=base_meta, st=st, 
+                p_args = {x : st.args[x] for x in ['modality', 'dataset', 'split', 'network', 'epoch', 'pretrain_model', 'freeze_point', 'base_lr', 
+                          'batch_size', 'momentum', 'l2decay', 'dropout', 'lr_scheduler', 'clip_len', 'crop_h', 'crop_w', 
+                          'is_mean_sub', 'is_rand_flip']}
+                return render_template('test_stream_state.html', base_meta=base_meta, st=st, p_args = p_args, 
                                        no_val=BASE_CONFIG['dataset'][st.args['dataset']]['val_txt'] == [])
             else:
                 return render_template('initializing.html', url=url_for('test_stream'))
@@ -341,12 +367,14 @@ def test_stream():
                 return jsonify({'html':'<span style="color: red;">No data available</span>'})
             else:
                 p = torch.load(req['model'], map_location=lambda storage, loc: storage)
-                p_args = p['args']
+                p_args = {x : p['args'][x] for x in ['modality', 'dataset', 'split', 'network', 'epoch', 'pretrain_model', 'freeze_point', 'base_lr', 
+                          'batch_size', 'momentum', 'l2decay', 'dropout', 'lr_scheduler', 'clip_len', 'crop_h', 'crop_w', 
+                          'is_mean_sub', 'is_rand_flip']}
                 p_training = {x:p['output'][x] for x in ['train_loss', 'val_loss', 'train_acc', 'val_acc']}
                 p_epoch = p['epoch']
-                del p
+                p_args['epoch'] = p_epoch
                 return jsonify({'html':render_template('resume_stream_properties.html', args = p_args, training = p_training, epoch = p_epoch), 
-                                'device': p_args['device'], 'clip_len':p_args['clip_len'], 'debug':p_args['is_debug_mode']})
+                                'device': p['args']['device'], 'clip_len':p['args']['clip_len'], 'debug':p['args']['is_debug_mode']})
     
         elif 'batch' in req.keys(): # update subbatch size validator
             form.test_subbatch_size.validators[1] = num_range(min = 1, max = int(req['batch']) * 10, dependant=[None, '10x of test batch size'])
@@ -384,15 +412,15 @@ def inspect_stream():
     print('inspect_stream/request.json', req)
     
     if (req == {} or req == None): # this is not ajax request
-        base_meta['title'] = 'stream/inspect_stream'
-        base_meta['header'] = 'Stream Output Viewer'
+        base_meta['title'] = 'Stream Benchmarking'
+        base_meta['header'] = 'Stream Benchmarking'
         global form
         form = InspectStreamForm()
         
         if form.validate_on_submit():
             print('inspect_stream/form_success')
-            base_meta['title'] = 'inspect_stream/' + form.main_model.data
-            base_meta['header'] = 'Stream Viewer - ' + form.main_model.data
+            base_meta['title'] = 'Stream Benchmarking'
+            base_meta['header'] = 'Stream Benchmarking - ' + form.main_model.data.split('\\')[-1].split('.')[0]
                         
             # ack models that need to be read
             if form.main_model.data in form.model_compare.data:
@@ -457,14 +485,21 @@ def inspect_stream():
                 Thread(target=plotly_confusion_matrix, args=(best_test_pkg[main_model]['cfm'], label_list, main_model)).start()
             else:
                 main_test = False
+                
+            if not path.exists('output/benchmark/'+main_model):
+                os.makedirs('output/benchmark/'+main_model)
                         
             # training state
             print('inspect_stream/PLOTTING TRAINING STATS')
-            main_loss_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_loss'], train_pkg[main_model]['output']['val_loss'], title=main_model)
-            main_acc_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_acc'], train_pkg[main_model]['output']['val_acc'], title=main_model)
+            main_loss_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_loss'], train_pkg[main_model]['output']['val_loss'], title=main_model, 
+                            static_path = 'static/benchmark/', save_path='output/benchmark/'+main_model+'/')
+            main_acc_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_acc'], train_pkg[main_model]['output']['val_acc'], title=main_model, 
+                           static_path = 'static/benchmark/', save_path='output/benchmark/'+main_model+'/')
             if len(peer_model) > 1: # if there is any comparison
-                comparing_graph2(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Loss', 'loss', main_model+'*')
-                comparing_graph2(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Accuracy', 'acc', main_model+'*')
+                comparing_graph2(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Loss', 'loss', main_model+'*', 
+                                 static_path = 'static/benchmark/', save_path = 'output/benchmark/'+main_model+'/')
+                comparing_graph2(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Accuracy', 'acc', main_model+'*', 
+                                 static_path = 'static/benchmark/', save_path = 'output/benchmark/'+main_model+'/')
 #                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_loss', 'loss', main_model+'*')
 #                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'val_loss', 'loss', main_model+'*')
 #                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_acc', 'accuracy', main_model+'*')
@@ -475,24 +510,24 @@ def inspect_stream():
             for metric in ['pred', 'score']:
                 for val_sort in ['desc', 'asc', 'none']:
                     cv_confusion_matrix('static/'+base_dataset+'/'+base_split+'/val/', train_pkg[main_model]['output']['val_result'],
-                                        label_list, target=metric, 
-                                        sort=val_sort, output_path='static/inspect/'+main_model+'/val')
+                                        label_list, target=metric, sort=val_sort, 
+                                        static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val')
                     cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/val/', 
                                                            train_pkg[main_model]['output']['val_result'], 
                                                            [train_pkg[x]['output']['val_result'] for x in peer_model[1:]], 
                                                            label_list, '*'+main_model, peer_model[1:], 
                                                            target=metric, sort=val_sort, by_peer='none', 
-                                                           output_path='static/inspect/'+main_model+'/val')
+                                                           static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val')
                     if main_model in best_test_pkg.keys():
                         cv_confusion_matrix('static/'+base_dataset+'/'+base_split+'/test/', best_test_pkg[main_model]['result'],
-                                            label_list, target=metric, 
-                                            sort=val_sort, output_path='static/inspect/'+main_model+'/test')
+                                            label_list, target=metric, sort=val_sort, 
+                                            static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test')
                         cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/test/', 
                                                            best_test_pkg[main_model]['result'], 
                                                            [best_test_pkg[x]['result'] for x in peer_model[1:]], 
                                                            label_list, '*'+main_model, peer_model[1:], 
                                                            target=metric, sort=val_sort, by_peer='none', 
-                                                           output_path='static/inspect/'+main_model+'/test')
+                                                           static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test')
                     for sort_model in peer_model:
                         if sort_model != main_model:
                             cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/val/', 
@@ -500,14 +535,14 @@ def inspect_stream():
                                                            [train_pkg[x]['output']['val_result'] for x in peer_model[1:]], 
                                                            label_list, main_model, peer_model[1:], 
                                                            target=metric, sort=val_sort, by_peer=sort_model, 
-                                                           output_path='static/inspect/'+main_model+'/val')
+                                                           static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val')
                             if main_model in best_test_pkg.keys():
                                 cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/test/', 
                                                            best_test_pkg[main_model]['result'], 
                                                            [best_test_pkg[x]['result'] for x in peer_model[1:]], 
                                                            label_list, main_model, peer_model[1:], 
                                                            target=metric, sort=val_sort, by_peer=sort_model, 
-                                                           output_path='static/inspect/'+main_model+'/test')
+                                                           static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test')
             # argument filters
             print('inspect_stream/MATCHING ARGUMENTS')
             args_filter = ['modality', 'dataset', 'split', 'network', 'pretrain_model', 'freeze_point', 'base_lr', 
@@ -519,7 +554,8 @@ def inspect_stream():
                 output[name]['args']['epoch'] = pkg['epoch']
             
             print('inspect_stream/READY')
-            return render_template('inspect_stream.html', base_meta=base_meta, output=output, base_model=main_model, dataset=base_dataset, split=base_split, main_test=main_test)
+            return render_template('inspect_stream.html', base_meta=base_meta, output=output, base_model=main_model, dataset=base_dataset, split=base_split, main_test=main_test, 
+                                   save_path = 'output/benchmark/'+main_model+'/')
         else:
             for fieldName, errorMessages in form.errors.items():
                 for err in errorMessages:
@@ -531,7 +567,8 @@ def inspect_stream():
         if 'base_model' in req.keys():
             base_dataset = req['base_model'].split('\\')[2]
             base_split = req['base_model'].split('\\')[3]
-            form.model_compare.choices = [(x,x) for x in glob('output\\stream\\'+base_dataset+'\\'+base_split+'\\training\\*.pth.tar', recursive=True)]
+            form.model_compare.choices = [(x,'-'.join([x.split('.')[0].split('\\')[i] for i in [2, 3, 5]]))
+                for x in glob('output\\stream\\'+base_dataset+'\\'+base_split+'\\training\\*.pth.tar', recursive=True)]
             return jsonify({'html':form.model_compare})
         
         else:
@@ -551,7 +588,7 @@ def visualize_stream():
             if sv != None:
                 sv.is_ready = False
         
-        base_meta['title'] = 'visualize_stream'
+        base_meta['title'] = 'Stream Visualization'
         base_meta['header'] = 'Stream Visualization'
         global form
         form = VisualizeStreamForm1(device_info['gpu_names'])
@@ -559,8 +596,8 @@ def visualize_stream():
         if form.validate_on_submit():
             print('visualize_outer/form_success')
             sv = StreamVis(form_to_dict(form))
-            base_meta['title'] = 'visualize_stream'
-            base_meta['header'] = 'Stream Visualization - ' + form.vis_model.data
+            base_meta['title'] = 'Stream Visualization'
+            base_meta['header'] = 'Stream Visualization - ' + form.vis_model.data.split('\\')[-1].split('.')[0]
             return redirect(url_for('visualize_panel'))
 
         else:
@@ -595,8 +632,9 @@ def visualize_panel():
                     sv.register_args(form_to_dict(form), form.target_class.choices)
                     # read input first
                     sv.fetch_input()
+                    output_name = sv.args['output_name'] + '-' + sv.form_args['clip_name'] + '-' + sv.label_list[int(sv.form_args['target_class'])] + '.jpg'
                     return render_template('visualize_stream_panel.html', base_meta = base_meta, form = form, args=sv.args, 
-                                           ready=True, clip_len=form.clip_len.data)
+                                           ready=True, clip_len=form.clip_len.data, save_path='output/vis/'+output_name)
                 
                 else:
                     sv.is_ready = False
@@ -605,7 +643,7 @@ def visualize_panel():
                             print('visualize_outer/form_failed',fieldName, err)    
                 
                 return render_template('visualize_stream_panel.html', base_meta = base_meta, form = form, args=sv.args, 
-                                       ready=False, clip_len=0)
+                                       ready=False, clip_len=0, save_path='')
             
     else:
         if 'update' in req.keys():

@@ -2,7 +2,6 @@
 {% block content %}
 
 <script>
-	var val_url = "static/stream_val_result/{{st.args['dataset']}}/split{{st.args['split']}}/"
 
     $(document).ready(function() {
         //check_update();
@@ -27,7 +26,7 @@
             folder = "anonymous";
         }
 		d = new Date();
-		$("#val_img img").removeAttr("src").attr("src", val_url+folder+"/"+filename+"?"+d.getTime());
+		$("#val_img img").removeAttr("src").attr("src","static/training/"+filename+"?"+d.getTime());
         //$("#val_img").html("<img src='static/stream_val_result/"+folder+"/"+filename+"'>");
     }
 
@@ -51,8 +50,8 @@
                             console.log('update result');
                             $(".default_text").hide(); 
                             $("#main_loss, #main_acc").html("Updating").show();
-                            $("#main_loss").load("{{url_for('static', filename='graph/main_loss.html')}}")
-                            $("#main_acc").load("{{url_for('static', filename='graph/main_acc.html')}}")
+                            $("#main_loss").load("{{url_for('static', filename='training/main_loss.html')}}")
+                            $("#main_acc").load("{{url_for('static', filename='training/main_acc.html')}}")
                             if(!response.no_compare) {
                                 $("#train_loss, #train_acc, #val_loss, #val_acc, #compare_loss, #compare_acc").html("Updating");
                                 /*
@@ -61,8 +60,8 @@
 								$("#val_loss").load("{{url_for('static', filename='graph/compare_val_loss.html')}}")
 								$("#val_acc").load("{{url_for('static', filename='graph/compare_val_acc.html')}}")
 								*/
-								$("#compare_loss").load("{{url_for('static', filename='graph/compare_loss.html')}}")
-								$("#compare_acc").load("{{url_for('static', filename='graph/compare_acc.html')}}")
+								$("#compare_loss").load("{{url_for('static', filename='training/compare_loss.html')}}")
+								$("#compare_acc").load("{{url_for('static', filename='training/compare_acc.html')}}")
                             }
 							if(response.no_compare) {
 								$("#compare_state_text").html("No models are selected for comparison").show();
@@ -72,6 +71,9 @@
                         if(response.complete) {
                             clearInterval(interval);
                             $("#progress_status").html('<b>Completed</b>');
+							if(confirm("Training is completed. Return to Homepage?")) {
+								window.location = "{{url_for('index')}}";
+							}
                             //redirect to inspect stream if possible
                         }
                     }

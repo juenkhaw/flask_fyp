@@ -4,14 +4,16 @@
 <script>
 	$(document).ready(function() {
 	
+		alert("Benchmarking results saved at {{save_path}}");
+	
 		if("{{main_test}}" === "False") {
 			$("#test_content").html("<p style='color:red'>Testing Data not available</p>");
 		}
 	
 		$("#main_loss, #main_acc").html("Updating").show();
 		
-		$("#main_loss").load("{{url_for('static', filename='graph/main_loss.html')}}")
-		$("#main_acc").load("{{url_for('static', filename='graph/main_acc.html')}}")
+		$("#main_loss").load("/static/benchmark/main_loss.html")
+		$("#main_acc").load("/static/benchmark/main_acc.html")
 		
 		if({{len(output.keys())}} > 1) {
 		
@@ -23,8 +25,8 @@
 			$("#val_loss").load("{{url_for('static', filename='graph/compare_val_loss.html')}}")
 			$("#val_acc").load("{{url_for('static', filename='graph/compare_val_acc.html')}}")
 			*/
-			$("#compare_loss").load("{{url_for('static', filename='graph/compare_loss.html')}}")
-			$("#compare_acc").load("{{url_for('static', filename='graph/compare_acc.html')}}")
+			$("#compare_loss").load("/static/benchmark/compare_loss.html")
+			$("#compare_acc").load("/static/benchmark/compare_acc.html")
 			
 		} else {
 			$("#val_sort_model").prop("disabled", true);
@@ -53,11 +55,16 @@
 		
 		$("#cfm_chart").click(function() {
 			if(confirm("This might take a while, continue?")) {
+				openNewBackgroundTab();
+				/*var open =  window.open('static/benchmark/cfm.html', '_blank');
+				if(open) {
+					open.focus();
+				}
 				$.ajax({
-					url: 'static/inspect/{{base_model}}/cfm.html',
+					url: 'static/benchmark/cfm.html',
 					type: 'HEAD',
 					success: function() {
-						var open =  window.open('static/inspect/{{base_model}}/cfm.html', '_blank');
+						var open =  window.open('static/benchmark/cfm.html', '_blank');
 						if(open) {
 							open.focus();
 						}
@@ -65,10 +72,20 @@
 					error: function() {
 						alert("Chart is not ready yet.");
 					}
-				});
+				}); */
 			} 
 		});
 	});
+	
+	function openNewBackgroundTab(){
+		var a = document.createElement("a");
+		a.href = "static/benchmark/cfm.html";
+		var evt = document.createEvent("MouseEvents");
+		//the tenth parameter of initMouseEvent sets ctrl key
+		evt.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0,
+									true, false, false, false, 0, null);
+		a.dispatchEvent(evt);
+	}
 	
 	function update_model_sort(mode) {
 		if($("#"+mode+"_display").val() === "base") {
@@ -86,9 +103,9 @@
 		var sort_model = $("#"+mode+"_sort_model").val();
 		
 		if(display === "base") {
-			$("#"+mode+"_img img").attr("src", "static/inspect/{{base_model}}/"+mode+"/"+metric+"_"+sort+".jpg")
+			$("#"+mode+"_img img").attr("src", "static/benchmark/"+mode+"/"+metric+"_"+sort+".jpg")
 		} else {
-			$("#"+mode+"_img img").attr("src", "static/inspect/{{base_model}}/"+mode+"/"+metric+"_"+sort+"_"+sort_model+".jpg")
+			$("#"+mode+"_img img").attr("src", "static/benchmark/"+mode+"/"+metric+"_"+sort+"_"+sort_model+".jpg")
 		}
 	}
 

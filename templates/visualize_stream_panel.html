@@ -31,8 +31,10 @@
 				data: JSON.stringify({update: true}),
 				success: function(response) {
 					if(response) {
+						alert("Visualization output saved at {{save_path}}");
 						$("#input_preview, #input_preview_title").hide();
 						$("form *").prop("disabled", false);
+						$("#vis_content .default_text").html("");
 						result_interval = setInterval(anim_result, 500);
 					}
 				}
