@@ -72,7 +72,7 @@ def main_acc_graph(epoch, train_acc, val_acc, title='', static_path = 'static/tr
             }}
     py.plot(figure, filename=static_path+'main_acc.html', config=config, auto_open = False)
     if save_path != '':
-        copy2(static_path+'main_acc.html', save_path+'main_loss.acc')
+        copy2(static_path+'main_acc.html', save_path+'main_acc.html')
         #py.plot(figure, filename=save_path+'main_acc.html', config=config, auto_open = False)
     
 def comparing_graph(current, data, title, yaxis, main_name = 'Current'):
@@ -487,7 +487,7 @@ def plotly_confusion_matrix(cfm, label, title):
     print('inspect_stream/PREPARING CFM')
     cfm2 = np.copy(cfm)
     for i in range(cfm2.shape[0]):
-        cfm2[i, i] = -1
+        cfm2[i, i] = 0
     data = [go.Heatmap(
             colorscale = 'Reds',
             x = label[:cfm.shape[1]],
@@ -515,8 +515,8 @@ def plotly_confusion_matrix(cfm, label, title):
     if not path.exists('output/benchmark/'+title):
         makedirs('output/benchmark/'+title)
     py.plot(fig, filename='static/benchmark/cfm.html', config=config, auto_open=False)
-    if not path.exists('output/benchmark/'+title):
-        makedirs('output/benchmark/'+title)
+#    if not path.exists('output/benchmark/'+title):
+#        makedirs('output/benchmark/'+title)
     copy2('static/benchmark/cfm.html', 'output/benchmark/'+title+'cfm.html')
     #py.plot(fig, filename='output/benchmark/'+title+'cfm.html', config=config, auto_open=False)
     print('inspect_stream/CFM DONE')

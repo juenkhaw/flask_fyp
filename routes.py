@@ -67,13 +67,11 @@ def index():
 def exec_train_stream(st):
     st.setup_training()
     st.train_net()
-    st.update['init'] = False
     st.update['complete'] = True
     
 def exec_resume_stream(st):
     st.setup_resume_training()
     st.train_net()
-    st.update['init'] = False
     st.update['complete'] = True
 
 @app.route('/train_stream', methods=['GET', 'POST'])
@@ -311,7 +309,6 @@ def resume_stream():
 def exec_test_stream(st):
     st.setup_testing()
     st.test_net()
-    st.update['init'] = False
     st.update['complete'] = True
 
 @app.route('/test_stream', methods=['GET', 'POST'])
@@ -482,7 +479,8 @@ def inspect_stream():
             
             main_test = True
             if main_model in best_test_pkg.keys():
-                Thread(target=plotly_confusion_matrix, args=(best_test_pkg[main_model]['cfm'], label_list, main_model)).start()
+                cfm_t = Thread(target=plotly_confusion_matrix, args=(best_test_pkg[main_model]['cfm'], label_list, main_model))
+                cfm_t.start()
             else:
                 main_test = False
                 
@@ -491,15 +489,29 @@ def inspect_stream():
                         
             # training state
             print('inspect_stream/PLOTTING TRAINING STATS')
-            main_loss_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_loss'], train_pkg[main_model]['output']['val_loss'], title=main_model, 
-                            static_path = 'static/benchmark/', save_path='output/benchmark/'+main_model+'/')
-            main_acc_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_acc'], train_pkg[main_model]['output']['val_acc'], title=main_model, 
-                           static_path = 'static/benchmark/', save_path='output/benchmark/'+main_model+'/')
+            graph_t = Thread(target=main_loss_graph, args=(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_loss'], train_pkg[main_model]['output']['val_loss']), 
+                   kwargs=dict(title=main_model, static_path = 'static/benchmark/', save_path='output/benchmark/'+main_model+'/'))
+            graph_t.start()
+            graph_t = Thread(target=main_acc_graph, args=(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_acc'], train_pkg[main_model]['output']['val_acc']), 
+                   kwargs=dict(title=main_model, static_path = 'static/benchmark/', save_path='output/benchmark/'+main_model+'/'))
+            graph_t.start()
+            
+#            main_loss_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_loss'], train_pkg[main_model]['output']['val_loss'], title=main_model, 
+#                            static_path = 'static/benchmark/', save_path='output/benchmark/'+main_model+'/')
+#            main_acc_graph(train_pkg[main_model]['epoch'], train_pkg[main_model]['output']['train_acc'], train_pkg[main_model]['output']['val_acc'], title=main_model, 
+#                           static_path = 'static/benchmark/', save_path='output/benchmark/'+main_model+'/')
             if len(peer_model) > 1: # if there is any comparison
-                comparing_graph2(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Loss', 'loss', main_model+'*', 
-                                 static_path = 'static/benchmark/', save_path = 'output/benchmark/'+main_model+'/')
-                comparing_graph2(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Accuracy', 'acc', main_model+'*', 
-                                 static_path = 'static/benchmark/', save_path = 'output/benchmark/'+main_model+'/')
+                graph_t = Thread(target=comparing_graph2, args=(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Loss', 'loss', main_model+'*'), 
+                       kwargs=dict(static_path = 'static/benchmark/', save_path = 'output/benchmark/'+main_model+'/'))
+                graph_t.start()
+                graph_t = Thread(target=comparing_graph2, args=(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Accuracy', 'acc', main_model+'*'), 
+                       kwargs=dict(static_path = 'static/benchmark/', save_path = 'output/benchmark/'+main_model+'/'))
+                graph_t.start()
+                
+#                comparing_graph2(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Loss', 'loss', main_model+'*', 
+#                                 static_path = 'static/benchmark/', save_path = 'output/benchmark/'+main_model+'/')
+#                comparing_graph2(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'Accuracy', 'acc', main_model+'*', 
+#                                 static_path = 'static/benchmark/', save_path = 'output/benchmark/'+main_model+'/')
 #                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_loss', 'loss', main_model+'*')
 #                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'val_loss', 'loss', main_model+'*')
 #                comparing_graph(train_pkg[main_model], [model for k, model in train_pkg.items() if k != main_model], 'train_acc', 'accuracy', main_model+'*')
@@ -509,40 +521,70 @@ def inspect_stream():
             print('inspect_stream/PLOTTING VALIDATION/TESTING STATS')
             for metric in ['pred', 'score']:
                 for val_sort in ['desc', 'asc', 'none']:
-                    cv_confusion_matrix('static/'+base_dataset+'/'+base_split+'/val/', train_pkg[main_model]['output']['val_result'],
-                                        label_list, target=metric, sort=val_sort, 
-                                        static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val')
-                    cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/val/', 
-                                                           train_pkg[main_model]['output']['val_result'], 
-                                                           [train_pkg[x]['output']['val_result'] for x in peer_model[1:]], 
-                                                           label_list, '*'+main_model, peer_model[1:], 
-                                                           target=metric, sort=val_sort, by_peer='none', 
-                                                           static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val')
+                    cv_t = Thread(target=cv_confusion_matrix, args=('static/'+base_dataset+'/'+base_split+'/val/', train_pkg[main_model]['output']['val_result'], label_list), 
+                                                             kwargs = dict(target=metric, sort=val_sort, static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val'))
+                    cv_t.start()
+                    cv_t = Thread(target=cv_confusion_matrix_with_peers, 
+                               args=('static/'+base_dataset+'/'+base_split+'/val/', train_pkg[main_model]['output']['val_result'], 
+                                     [train_pkg[x]['output']['val_result'] for x in peer_model[1:]], label_list, '*'+main_model, peer_model[1:]), 
+                                     kwargs=dict(target=metric, sort=val_sort, by_peer='none', static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val'))
+                    cv_t.start()
+                    
+#                    cv_confusion_matrix('static/'+base_dataset+'/'+base_split+'/val/', train_pkg[main_model]['output']['val_result'],
+#                                        label_list, target=metric, sort=val_sort, 
+#                                        static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val')
+#                    cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/val/', 
+#                                                           train_pkg[main_model]['output']['val_result'], 
+#                                                           [train_pkg[x]['output']['val_result'] for x in peer_model[1:]], 
+#                                                           label_list, '*'+main_model, peer_model[1:], 
+#                                                           target=metric, sort=val_sort, by_peer='none', 
+#                                                           static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val')
                     if main_model in best_test_pkg.keys():
-                        cv_confusion_matrix('static/'+base_dataset+'/'+base_split+'/test/', best_test_pkg[main_model]['result'],
-                                            label_list, target=metric, sort=val_sort, 
-                                            static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test')
-                        cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/test/', 
-                                                           best_test_pkg[main_model]['result'], 
-                                                           [best_test_pkg[x]['result'] for x in peer_model[1:]], 
-                                                           label_list, '*'+main_model, peer_model[1:], 
-                                                           target=metric, sort=val_sort, by_peer='none', 
-                                                           static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test')
+                        cv_t = Thread(target=cv_confusion_matrix, args=('static/'+base_dataset+'/'+base_split+'/test/', best_test_pkg[main_model]['result'], label_list), 
+                                   kwargs=dict(target=metric, sort=val_sort, static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test'))
+                        cv_t.start()
+                        cv_t = Thread(target=cv_confusion_matrix_with_peers, 
+                                   args=('static/'+base_dataset+'/'+base_split+'/test/', best_test_pkg[main_model]['result'], 
+                                             [best_test_pkg[x]['result'] for x in peer_model[1:]], label_list, '*'+main_model, peer_model[1:]), 
+                                         kwargs=dict(target=metric, sort=val_sort, by_peer='none', static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test'))
+                        cv_t.start()
+                        
+#                        cv_confusion_matrix('static/'+base_dataset+'/'+base_split+'/test/', best_test_pkg[main_model]['result'],
+#                                            label_list, target=metric, sort=val_sort, 
+#                                            static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test')
+#                        cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/test/', 
+#                                                           best_test_pkg[main_model]['result'], 
+#                                                           [best_test_pkg[x]['result'] for x in peer_model[1:]], 
+#                                                           label_list, '*'+main_model, peer_model[1:], 
+#                                                           target=metric, sort=val_sort, by_peer='none', 
+#                                                           static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test')
                     for sort_model in peer_model:
                         if sort_model != main_model:
-                            cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/val/', 
-                                                           train_pkg[main_model]['output']['val_result'], 
-                                                           [train_pkg[x]['output']['val_result'] for x in peer_model[1:]], 
-                                                           label_list, main_model, peer_model[1:], 
-                                                           target=metric, sort=val_sort, by_peer=sort_model, 
-                                                           static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val')
+                            cv_t = Thread(target=cv_confusion_matrix_with_peers, 
+                                   args=('static/'+base_dataset+'/'+base_split+'/val/', train_pkg[main_model]['output']['val_result'], 
+                                         [train_pkg[x]['output']['val_result'] for x in peer_model[1:]], label_list, main_model, peer_model[1:]), 
+                                    kwargs=dict(target=metric, sort=val_sort, by_peer=sort_model, 
+                                                static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val'))
+                            cv_t.start()
+                            
+#                            cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/val/', 
+#                                                           train_pkg[main_model]['output']['val_result'], 
+#                                                           [train_pkg[x]['output']['val_result'] for x in peer_model[1:]], 
+#                                                           label_list, main_model, peer_model[1:], 
+#                                                           target=metric, sort=val_sort, by_peer=sort_model, 
+#                                                           static_path='static/benchmark/val', save_path='output/benchmark/'+main_model+'/val')
                             if main_model in best_test_pkg.keys():
-                                cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/test/', 
-                                                           best_test_pkg[main_model]['result'], 
-                                                           [best_test_pkg[x]['result'] for x in peer_model[1:]], 
-                                                           label_list, main_model, peer_model[1:], 
-                                                           target=metric, sort=val_sort, by_peer=sort_model, 
-                                                           static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test')
+                                cv_t = Thread(target=cv_confusion_matrix_with_peers, args=('static/'+base_dataset+'/'+base_split+'/test/', best_test_pkg[main_model]['result'], 
+                                                           [best_test_pkg[x]['result'] for x in peer_model[1:]], label_list, main_model, peer_model[1:]), 
+                                       kwargs=dict(target=metric, sort=val_sort, by_peer=sort_model, static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test'))
+                                cv_t.start()
+                                
+#                                cv_confusion_matrix_with_peers('static/'+base_dataset+'/'+base_split+'/test/', 
+#                                                           best_test_pkg[main_model]['result'], 
+#                                                           [best_test_pkg[x]['result'] for x in peer_model[1:]], 
+#                                                           label_list, main_model, peer_model[1:], 
+#                                                           target=metric, sort=val_sort, by_peer=sort_model, 
+#                                                           static_path='static/benchmark/test', save_path='output/benchmark/'+main_model+'/test')
             # argument filters
             print('inspect_stream/MATCHING ARGUMENTS')
             args_filter = ['modality', 'dataset', 'split', 'network', 'pretrain_model', 'freeze_point', 'base_lr', 
@@ -552,6 +594,10 @@ def inspect_stream():
             for name, pkg in train_pkg.items():
                 output[name]['args'] = {arg : train_pkg[name]['args'][arg] for arg in args_filter}
                 output[name]['args']['epoch'] = pkg['epoch']
+                
+            cfm_t.join()
+            graph_t.join()
+            cv_t.join()
             
             print('inspect_stream/READY')
             return render_template('inspect_stream.html', base_meta=base_meta, output=output, base_model=main_model, dataset=base_dataset, split=base_split, main_test=main_test, 

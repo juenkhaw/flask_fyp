@@ -98,7 +98,7 @@ class TrainStreamForm(FlaskForm):
     crop_h = IntegerField(u'Spatial Height', default = 112, validators=[InputRequired(), num_range(min = 1)])
     crop_w = IntegerField(u'Spatial Width', default = 112, validators=[InputRequired(), num_range(min = 1)])
     is_mean_sub = BooleanField(u'Enable Flow Mean Substraction')
-    is_rand_flip = BooleanField(u'Enable Random Vertical Flipping')
+    is_rand_flip = BooleanField(u'Enable Random Horizontal Flipping')
     
     # debugging mode
     is_debug_mode = BooleanField(u'Enable Debugging Mode', default = True) ###
